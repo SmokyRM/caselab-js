@@ -17,5 +17,8 @@ export async function getWeatherForCities(cities, days) {
   );
   const results = await Promise.allSettled(weatherPromises);
 
-  return results;
+  return results.map((result, index) => ({
+    city: cities[index],
+    ...result,
+  }));
 }
