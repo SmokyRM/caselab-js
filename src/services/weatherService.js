@@ -10,3 +10,12 @@ export async function getWeatherForCity(city, days) {
 
   return { location, forecast };
 }
+
+export async function getWeatherForCities(cities, days) {
+  const weatherPromises = cities.map((city) =>
+    getWeatherForCity(city, days),
+  );
+  const results = await Promise.allSettled(weatherPromises);
+
+  return results;
+}
