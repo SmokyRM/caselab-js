@@ -1,4 +1,5 @@
 import { parseArguments } from './cli/arguments.js';
+import { formatWeather } from './format/consoleFormatter.js';
 import { getWeatherForCities } from './services/weatherService.js';
 
 async function main() {
@@ -7,10 +8,16 @@ async function main() {
     const options = parseArguments(args);
     const results = await getWeatherForCities(options.cities, options.days);
     let hasErrors = false;
+    let hasPrintedWeather = false;
 
     for (const result of results) {
       if (result.status === 'fulfilled') {
-        console.log(result.value);
+        if (hasPrintedWeather) {
+          console.log('');
+        }
+
+        console.log(formatWeather(result.value));
+        hasPrintedWeather = true;
       } else {
         console.error(
           `Ошибка для города "${result.city}": ${result.reason.message}`
