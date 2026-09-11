@@ -3,7 +3,7 @@ import { loadReport } from '../storage/reportStorage.js';
 
 export async function getWeatherForCity(city, days, noCache) {
   if (!noCache) {
-    const cachedWeather = await loadReport(city);
+    const cachedWeather = await loadReport(city, days);
 
     if (cachedWeather !== null) {
       return cachedWeather;

@@ -1,7 +1,10 @@
-import { REQUEST_TIMEOUT_MS } from '../config.js';
-
-const GEOCODING_API_URL = 'https://geocoding-api.open-meteo.com/v1/search';
-const FORECAST_API_URL = 'https://api.open-meteo.com/v1/forecast';
+import {
+  FORECAST_API_URL,
+  GEOCODING_API_URL,
+  PRECIPITATION_UNIT,
+  REQUEST_TIMEOUT_MS,
+  TEMPERATURE_UNIT,
+} from '../config.js';
 
 async function requestJson(url) {
   const controller = new AbortController();
@@ -100,6 +103,8 @@ export async function getForecast(latitude, longitude, days) {
     daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum',
     forecast_days: String(days),
     timezone: 'auto',
+    temperature_unit: TEMPERATURE_UNIT,
+    precipitation_unit: PRECIPITATION_UNIT,
   });
 
   url.search = searchParams.toString();
