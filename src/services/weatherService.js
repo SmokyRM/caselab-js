@@ -14,7 +14,7 @@ export async function getWeatherForCity(city, days, noCache) {
   const forecast = await getForecast(
     location.latitude,
     location.longitude,
-    days,
+    days
   );
 
   return { location, forecast };
@@ -22,7 +22,7 @@ export async function getWeatherForCity(city, days, noCache) {
 
 export async function getWeatherForCities(cities, days, noCache) {
   const weatherPromises = cities.map((city) =>
-    getWeatherForCity(city, days, noCache),
+    getWeatherForCity(city, days, noCache)
   );
   const results = await Promise.allSettled(weatherPromises);
 

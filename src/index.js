@@ -10,7 +10,7 @@ async function main() {
     const results = await getWeatherForCities(
       options.cities,
       options.days,
-      options.noCache,
+      options.noCache
     );
     let hasErrors = false;
     let hasPrintedWeather = false;
@@ -20,7 +20,7 @@ async function main() {
         const reportPath = await saveReport(
           result.value,
           result.city,
-          options.days,
+          options.days
         );
 
         if (hasPrintedWeather) {

@@ -23,27 +23,23 @@ async function requestJson(url) {
       if (error.name === 'AbortError' || controller.signal.aborted) {
         throw new Error(
           `Превышено время ожидания ответа Open-Meteo (${REQUEST_TIMEOUT_MS} мс).`,
-          { cause: error },
+          { cause: error }
         );
       }
 
       throw new Error(
         'Не удалось подключиться к Open-Meteo. Проверьте интернет-соединение.',
-        { cause: error },
+        { cause: error }
       );
     }
 
     if (!response.ok) {
       if (response.status >= 400 && response.status <= 499) {
-        throw new Error(
-          `Ошибка клиента Open-Meteo: HTTP ${response.status}.`,
-        );
+        throw new Error(`Ошибка клиента Open-Meteo: HTTP ${response.status}.`);
       }
 
       if (response.status >= 500) {
-        throw new Error(
-          `Ошибка сервера Open-Meteo: HTTP ${response.status}.`,
-        );
+        throw new Error(`Ошибка сервера Open-Meteo: HTTP ${response.status}.`);
       }
 
       throw new Error(`Ошибка Open-Meteo: HTTP ${response.status}.`);
@@ -55,7 +51,7 @@ async function requestJson(url) {
       if (error.name === 'AbortError' || controller.signal.aborted) {
         throw new Error(
           `Превышено время ожидания ответа Open-Meteo (${REQUEST_TIMEOUT_MS} мс).`,
-          { cause: error },
+          { cause: error }
         );
       }
 

@@ -47,10 +47,9 @@ export async function loadReport(city, days) {
   try {
     cachedWeather = JSON.parse(reportContent);
   } catch (error) {
-    throw new Error(
-      `Кэш для города "${city}" содержит некорректный JSON.`,
-      { cause: error },
-    );
+    throw new Error(`Кэш для города "${city}" содержит некорректный JSON.`, {
+      cause: error,
+    });
   }
 
   const cacheInfo = cachedWeather?.cacheInfo;
