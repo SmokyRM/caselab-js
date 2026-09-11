@@ -7,13 +7,17 @@ async function main() {
   try {
     const args = process.argv.slice(2);
     const options = parseArguments(args);
-    const results = await getWeatherForCities(options.cities, options.days);
+    const results = await getWeatherForCities(
+      options.cities,
+      options.days,
+      options.noCache,
+    );
     let hasErrors = false;
     let hasPrintedWeather = false;
 
     for (const result of results) {
       if (result.status === 'fulfilled') {
-        const reportPath = await saveReport(result.value);
+        const reportPath = await saveReport(result.value, result.city);
 
         if (hasPrintedWeather) {
           console.log('');
