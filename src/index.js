@@ -1,22 +1,30 @@
 import { parseArguments } from './cli/arguments.js';
 import { formatWeather } from './format/consoleFormatter.js';
 import { getWeatherForCities } from './services/weatherService.js';
+import { saveReport } from './storage/reportStorage.js';
 
 async function main() {
   try {
     const args = process.argv.slice(2);
     const options = parseArguments(args);
-    const results = await getWeatherForCities(options.cities, options.days);
+    const results = await getWeatherForCities(
+      options.cities,
+      options.days,
+      options.noCache,
+    );
     let hasErrors = false;
     let hasPrintedWeather = false;
 
     for (const result of results) {
       if (result.status === 'fulfilled') {
+        const reportPath = await saveReport(result.value, result.city);
+
         if (hasPrintedWeather) {
           console.log('');
         }
 
         console.log(formatWeather(result.value));
+        console.log(`Отчёт сохранён: ${reportPath}`);
         hasPrintedWeather = true;
       } else {
         console.error(
