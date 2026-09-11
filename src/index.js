@@ -1,6 +1,7 @@
 import { parseArguments } from './cli/arguments.js';
 import { formatWeather } from './format/consoleFormatter.js';
 import { getWeatherForCities } from './services/weatherService.js';
+import { saveReport } from './storage/reportStorage.js';
 
 async function main() {
   try {
@@ -12,11 +13,14 @@ async function main() {
 
     for (const result of results) {
       if (result.status === 'fulfilled') {
+        const reportPath = await saveReport(result.value);
+
         if (hasPrintedWeather) {
           console.log('');
         }
 
         console.log(formatWeather(result.value));
+        console.log(`Отчёт сохранён: ${reportPath}`);
         hasPrintedWeather = true;
       } else {
         console.error(
