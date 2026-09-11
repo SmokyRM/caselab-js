@@ -17,7 +17,11 @@ async function main() {
 
     for (const result of results) {
       if (result.status === 'fulfilled') {
-        const reportPath = await saveReport(result.value, result.city);
+        const reportPath = await saveReport(
+          result.value,
+          result.city,
+          options.days,
+        );
 
         if (hasPrintedWeather) {
           console.log('');

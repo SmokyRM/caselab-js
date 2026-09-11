@@ -1,7 +1,12 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import {
+  PRECIPITATION_UNIT,
+  REPORTS_DIR,
+  TEMPERATURE_UNIT,
+} from '../config.js';
 
-const REPORTS_DIRECTORY = path.join(process.cwd(), 'reports');
+const REPORTS_DIRECTORY = path.join(process.cwd(), REPORTS_DIR);
 
 function getLocalDate() {
   const now = new Date();
@@ -23,7 +28,7 @@ function getReportPath(city) {
   return path.join(REPORTS_DIRECTORY, fileName);
 }
 
-export async function loadReport(city) {
+export async function loadReport(city, days) {
   const reportPath = getReportPath(city);
   let reportContent;
 
@@ -37,21 +42,44 @@ export async function loadReport(city) {
     throw error;
   }
 
+  let cachedWeather;
+
   try {
-    return JSON.parse(reportContent);
+    cachedWeather = JSON.parse(reportContent);
   } catch (error) {
     throw new Error(
       `Кэш для города "${city}" содержит некорректный JSON.`,
       { cause: error },
     );
   }
+
+  const cacheInfo = cachedWeather?.cacheInfo;
+
+  if (
+    !cacheInfo ||
+    cacheInfo.days !== days ||
+    cacheInfo.temperatureUnit !== TEMPERATURE_UNIT ||
+    cacheInfo.precipitationUnit !== PRECIPITATION_UNIT
+  ) {
+    return null;
+  }
+
+  return cachedWeather;
 }
 
-export async function saveReport(weather, city) {
+export async function saveReport(weather, city, days) {
   await mkdir(REPORTS_DIRECTORY, { recursive: true });
 
   const reportPath = getReportPath(city);
-  const reportContent = JSON.stringify(weather, null, 2);
+  const report = {
+    ...weather,
+    cacheInfo: {
+      days,
+      temperatureUnit: TEMPERATURE_UNIT,
+      precipitationUnit: PRECIPITATION_UNIT,
+    },
+  };
+  const reportContent = JSON.stringify(report, null, 2);
 
   await writeFile(reportPath, reportContent, 'utf8');
 
