@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { ConflictError } from '../errors/ConflictError.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
 import * as equipmentRepository from '../repositories/equipment.repository.js';
+import * as requestRepository from '../repositories/request.repository.js';
 
 function createNotFoundError() {
   return new NotFoundError('Оборудование не найдено.', 'EQUIPMENT_NOT_FOUND');
@@ -54,5 +55,15 @@ export async function updateEquipment(id, data) {
 
 export async function deleteEquipment(id) {
   await getEquipment(id);
+
+  const hasOpenRequests = await requestRepository.hasOpenByEquipmentId(id);
+
+  if (hasOpenRequests) {
+    throw new ConflictError(
+      'Нельзя удалить оборудование с открытыми заявками.',
+      'EQUIPMENT_HAS_OPEN_REQUESTS'
+    );
+  }
+
   await equipmentRepository.remove(id);
 }
