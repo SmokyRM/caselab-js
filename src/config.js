@@ -5,6 +5,8 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 5000;
 const DEFAULT_REPORTS_DIR = 'reports';
 const DEFAULT_TEMPERATURE_UNIT = 'celsius';
 const DEFAULT_PRECIPITATION_UNIT = 'mm';
+const DEFAULT_PORT = 3000;
+const DEFAULT_NODE_ENV = 'development';
 
 function getEnvValue(name, defaultValue) {
   const value = process.env[name];
@@ -19,6 +21,12 @@ function getAllowedEnvValue(name, allowedValues, defaultValue) {
 }
 
 const requestTimeoutFromEnv = Number(process.env.REQUEST_TIMEOUT_MS);
+const portFromEnv = Number(process.env.PORT);
+
+export const PORT =
+  Number.isInteger(portFromEnv) && portFromEnv > 0 ? portFromEnv : DEFAULT_PORT;
+
+export const NODE_ENV = getEnvValue('NODE_ENV', DEFAULT_NODE_ENV);
 
 export const GEOCODING_API_URL = getEnvValue(
   'GEOCODING_API_URL',
