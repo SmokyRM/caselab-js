@@ -5,6 +5,18 @@ import {
   REQUEST_TIMEOUT_MS,
   TEMPERATURE_UNIT,
 } from '../config.js';
+import {
+  WeatherApiError,
+  WeatherApiTimeoutError,
+} from '../errors/WeatherApiError.js';
+
+function createApiUrl(apiUrl) {
+  try {
+    return new URL(apiUrl);
+  } catch (error) {
+    throw new WeatherApiError('Указан некорректный URL Open-Meteo.', error);
+  }
+}
 
 async function requestJson(url) {
   const controller = new AbortController();
@@ -21,43 +33,39 @@ async function requestJson(url) {
       });
     } catch (error) {
       if (error.name === 'AbortError' || controller.signal.aborted) {
-        throw new Error(
-          `Превышено время ожидания ответа Open-Meteo (${REQUEST_TIMEOUT_MS} мс).`,
-          { cause: error }
-        );
+        throw new WeatherApiTimeoutError(REQUEST_TIMEOUT_MS, error);
       }
 
-      throw new Error(
+      throw new WeatherApiError(
         'Не удалось подключиться к Open-Meteo. Проверьте интернет-соединение.',
-        { cause: error }
+        error
       );
     }
 
     if (!response.ok) {
       if (response.status >= 400 && response.status <= 499) {
-        throw new Error(`Ошибка клиента Open-Meteo: HTTP ${response.status}.`);
+        throw new WeatherApiError(
+          `Ошибка клиента Open-Meteo: HTTP ${response.status}.`
+        );
       }
 
       if (response.status >= 500) {
-        throw new Error(`Ошибка сервера Open-Meteo: HTTP ${response.status}.`);
+        throw new WeatherApiError(
+          `Ошибка сервера Open-Meteo: HTTP ${response.status}.`
+        );
       }
 
-      throw new Error(`Ошибка Open-Meteo: HTTP ${response.status}.`);
+      throw new WeatherApiError(`Ошибка Open-Meteo: HTTP ${response.status}.`);
     }
 
     try {
       return await response.json();
     } catch (error) {
       if (error.name === 'AbortError' || controller.signal.aborted) {
-        throw new Error(
-          `Превышено время ожидания ответа Open-Meteo (${REQUEST_TIMEOUT_MS} мс).`,
-          { cause: error }
-        );
+        throw new WeatherApiTimeoutError(REQUEST_TIMEOUT_MS, error);
       }
 
-      throw new Error('Open-Meteo вернул некорректный JSON.', {
-        cause: error,
-      });
+      throw new WeatherApiError('Open-Meteo вернул некорректный JSON.', error);
     }
   } finally {
     clearTimeout(timeoutId);
@@ -65,7 +73,7 @@ async function requestJson(url) {
 }
 
 export async function getCoordinates(city) {
-  const url = new URL(GEOCODING_API_URL);
+  const url = createApiUrl(GEOCODING_API_URL);
   const searchParams = new URLSearchParams({
     name: city,
     count: '1',
@@ -91,16 +99,19 @@ export async function getCoordinates(city) {
   };
 }
 
-export async function getForecast(latitude, longitude, days) {
-  const url = new URL(FORECAST_API_URL);
+export async function getForecast(latitude, longitude, days, options = {}) {
+  const precipitationUnit = options.precipitationUnit ?? PRECIPITATION_UNIT;
+  const url = createApiUrl(FORECAST_API_URL);
   const searchParams = new URLSearchParams({
     latitude: String(latitude),
     longitude: String(longitude),
-    daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum',
+    daily:
+      'temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max',
     forecast_days: String(days),
     timezone: 'auto',
     temperature_unit: TEMPERATURE_UNIT,
-    precipitation_unit: PRECIPITATION_UNIT,
+    precipitation_unit: precipitationUnit,
+    wind_speed_unit: 'kmh',
   });
 
   url.search = searchParams.toString();
@@ -113,9 +124,10 @@ export async function getForecast(latitude, longitude, days) {
     !Array.isArray(daily.time) ||
     !Array.isArray(daily.temperature_2m_min) ||
     !Array.isArray(daily.temperature_2m_max) ||
-    !Array.isArray(daily.precipitation_sum)
+    !Array.isArray(daily.precipitation_sum) ||
+    !Array.isArray(daily.wind_speed_10m_max)
   ) {
-    throw new Error('Ответ Open-Meteo не содержит данных прогноза.');
+    throw new WeatherApiError('Ответ Open-Meteo не содержит данных прогноза.');
   }
 
   const forecastLength = daily.time.length;
@@ -124,9 +136,12 @@ export async function getForecast(latitude, longitude, days) {
     forecastLength === 0 ||
     daily.temperature_2m_min.length !== forecastLength ||
     daily.temperature_2m_max.length !== forecastLength ||
-    daily.precipitation_sum.length !== forecastLength
+    daily.precipitation_sum.length !== forecastLength ||
+    daily.wind_speed_10m_max.length !== forecastLength
   ) {
-    throw new Error('Данные прогноза Open-Meteo имеют неверный формат.');
+    throw new WeatherApiError(
+      'Данные прогноза Open-Meteo имеют неверный формат.'
+    );
   }
 
   return daily.time.map((date, index) => ({
@@ -134,5 +149,6 @@ export async function getForecast(latitude, longitude, days) {
     minTemperature: daily.temperature_2m_min[index],
     maxTemperature: daily.temperature_2m_max[index],
     precipitation: daily.precipitation_sum[index],
+    maxWindSpeed: daily.wind_speed_10m_max[index],
   }));
 }
