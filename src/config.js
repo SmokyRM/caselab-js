@@ -9,6 +9,10 @@ const DEFAULT_PORT = 3000;
 const DEFAULT_NODE_ENV = 'development';
 const DEFAULT_OUTDOOR_MAX_PRECIPITATION = 0;
 const DEFAULT_OUTDOOR_MAX_WIND_SPEED = 36;
+const DEFAULT_CORS_ORIGINS = ['http://localhost:3000', 'http://localhost:5173'];
+const DEFAULT_RATE_LIMIT_WINDOW_MS = 60000;
+const DEFAULT_RATE_LIMIT_MAX = 100;
+const DEFAULT_LOG_LEVEL = 'info';
 
 function getEnvValue(name, defaultValue) {
   const value = process.env[name];
@@ -29,6 +33,15 @@ function getNumberEnvValue(name, defaultValue, isValid) {
   return value && Number.isFinite(number) && isValid(number)
     ? number
     : defaultValue;
+}
+
+function getListEnvValue(name, defaultValue) {
+  const values = process.env[name]
+    ?.split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return values?.length ? values : defaultValue;
 }
 
 const requestTimeoutFromEnv = Number(process.env.REQUEST_TIMEOUT_MS);
@@ -78,4 +91,27 @@ export const OUTDOOR_MAX_WIND_SPEED = getNumberEnvValue(
   'OUTDOOR_MAX_WIND_SPEED',
   DEFAULT_OUTDOOR_MAX_WIND_SPEED,
   (value) => value > 0
+);
+
+export const CORS_ORIGINS = getListEnvValue(
+  'CORS_ORIGINS',
+  DEFAULT_CORS_ORIGINS
+);
+
+export const RATE_LIMIT_WINDOW_MS = getNumberEnvValue(
+  'RATE_LIMIT_WINDOW_MS',
+  DEFAULT_RATE_LIMIT_WINDOW_MS,
+  (value) => value > 0
+);
+
+export const RATE_LIMIT_MAX = getNumberEnvValue(
+  'RATE_LIMIT_MAX',
+  DEFAULT_RATE_LIMIT_MAX,
+  (value) => Number.isInteger(value) && value > 0
+);
+
+export const LOG_LEVEL = getAllowedEnvValue(
+  'LOG_LEVEL',
+  ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'],
+  DEFAULT_LOG_LEVEL
 );
