@@ -7,6 +7,8 @@ const DEFAULT_TEMPERATURE_UNIT = 'celsius';
 const DEFAULT_PRECIPITATION_UNIT = 'mm';
 const DEFAULT_PORT = 3000;
 const DEFAULT_NODE_ENV = 'development';
+const DEFAULT_OUTDOOR_MAX_PRECIPITATION = 0;
+const DEFAULT_OUTDOOR_MAX_WIND_SPEED = 36;
 
 function getEnvValue(name, defaultValue) {
   const value = process.env[name];
@@ -18,6 +20,15 @@ function getAllowedEnvValue(name, allowedValues, defaultValue) {
   const value = process.env[name]?.trim();
 
   return allowedValues.includes(value) ? value : defaultValue;
+}
+
+function getNumberEnvValue(name, defaultValue, isValid) {
+  const value = process.env[name]?.trim();
+  const number = Number(value);
+
+  return value && Number.isFinite(number) && isValid(number)
+    ? number
+    : defaultValue;
 }
 
 const requestTimeoutFromEnv = Number(process.env.REQUEST_TIMEOUT_MS);
@@ -55,4 +66,16 @@ export const PRECIPITATION_UNIT = getAllowedEnvValue(
   'PRECIPITATION_UNIT',
   ['mm', 'inch'],
   DEFAULT_PRECIPITATION_UNIT
+);
+
+export const OUTDOOR_MAX_PRECIPITATION = getNumberEnvValue(
+  'OUTDOOR_MAX_PRECIPITATION',
+  DEFAULT_OUTDOOR_MAX_PRECIPITATION,
+  (value) => value >= 0
+);
+
+export const OUTDOOR_MAX_WIND_SPEED = getNumberEnvValue(
+  'OUTDOOR_MAX_WIND_SPEED',
+  DEFAULT_OUTDOOR_MAX_WIND_SPEED,
+  (value) => value > 0
 );
