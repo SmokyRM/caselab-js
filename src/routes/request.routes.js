@@ -24,6 +24,12 @@ requestRouter.post(
 );
 
 requestRouter.get(
+  '/:id/history',
+  validate({ params: requestIdSchema }),
+  requestController.getRequestStatusHistory
+);
+
+requestRouter.get(
   '/:id',
   validate({ params: requestIdSchema }),
   requestController.getRequest
