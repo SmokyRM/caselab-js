@@ -1,5 +1,8 @@
 import { ForeignKeyConstraintError, Op } from 'sequelize';
-import { MaintenanceRequest } from '../db/models/index.js';
+import {
+  MaintenanceRequest,
+  RequestStatusHistory,
+} from '../db/models/index.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
 
 const sortFields = {
@@ -30,6 +33,20 @@ function mapRequest(request) {
     plannedAt: toIsoString(plainRequest.planned_at),
     createdAt: toIsoString(plainRequest.created_at),
     updatedAt: toIsoString(plainRequest.updated_at),
+  };
+}
+
+function mapStatusHistory(history) {
+  const plainHistory = history.get({ plain: true });
+
+  return {
+    id: plainHistory.id,
+    requestId: plainHistory.request_id,
+    oldStatus: plainHistory.old_status,
+    newStatus: plainHistory.new_status,
+    author: plainHistory.author,
+    comment: plainHistory.comment,
+    createdAt: toIsoString(plainHistory.created_at),
   };
 }
 
@@ -120,6 +137,26 @@ export async function findById(id) {
   return mapRequest(request);
 }
 
+export async function findByIdForUpdate(id, transaction) {
+  const request = await MaintenanceRequest.findByPk(id, {
+    attributes: [
+      'id',
+      'equipment_id',
+      'title',
+      'description',
+      'priority',
+      'status',
+      'planned_at',
+      'created_at',
+      'updated_at',
+    ],
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+
+  return mapRequest(request);
+}
+
 export async function findByEquipmentId(equipmentId, options) {
   return findAll({ ...options, equipmentId });
 }
@@ -149,14 +186,21 @@ export async function create(data) {
   }
 }
 
-export async function update(id, changes) {
+export async function update(id, changes, options = {}) {
   try {
-    const request = await MaintenanceRequest.findByPk(id);
+    const mappedChanges = mapRequestChanges(changes);
+    const [updatedCount] = await MaintenanceRequest.update(mappedChanges, {
+      where: { id },
+      transaction: options.transaction,
+      silent: Object.hasOwn(mappedChanges, 'updated_at'),
+    });
 
-    if (!request) return null;
+    if (updatedCount === 0) return null;
 
-    request.set(mapRequestChanges(changes));
-    await request.save();
+    const request = await MaintenanceRequest.findByPk(id, {
+      transaction: options.transaction,
+    });
+
     return mapRequest(request);
   } catch (error) {
     if (error instanceof ForeignKeyConstraintError) {
@@ -165,6 +209,43 @@ export async function update(id, changes) {
 
     throw error;
   }
+}
+
+export async function createStatusHistory(data, options = {}) {
+  const history = await RequestStatusHistory.create(
+    {
+      request_id: data.requestId,
+      old_status: data.oldStatus,
+      new_status: data.newStatus,
+      author: data.author,
+      comment: data.comment,
+      created_at: data.createdAt,
+    },
+    { transaction: options.transaction }
+  );
+
+  return mapStatusHistory(history);
+}
+
+export async function findStatusHistoryByRequestId(requestId) {
+  const history = await RequestStatusHistory.findAll({
+    attributes: [
+      'id',
+      'request_id',
+      'old_status',
+      'new_status',
+      'author',
+      'comment',
+      'created_at',
+    ],
+    where: { request_id: requestId },
+    order: [
+      ['created_at', 'ASC'],
+      ['id', 'ASC'],
+    ],
+  });
+
+  return history.map(mapStatusHistory);
 }
 
 export async function remove(id) {

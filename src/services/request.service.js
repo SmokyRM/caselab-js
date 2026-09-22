@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { sequelize } from '../db/models/index.js';
 import { ConflictError } from '../errors/ConflictError.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
 import * as equipmentRepository from '../repositories/equipment.repository.js';
@@ -76,20 +77,49 @@ export async function updateRequest(id, data) {
 }
 
 export async function changeRequestStatus(id, status) {
-  const request = await getRequest(id);
-  const allowedStatuses = allowedStatusTransitions[request.status];
+  return sequelize.transaction(async (transaction) => {
+    const request = await requestRepository.findByIdForUpdate(id, transaction);
 
-  if (!allowedStatuses.includes(status)) {
-    throw new ConflictError(
-      `Переход статуса из "${request.status}" в "${status}" запрещён.`,
-      'INVALID_REQUEST_STATUS_TRANSITION'
+    if (!request) throw createRequestNotFoundError();
+
+    const allowedStatuses = allowedStatusTransitions[request.status];
+
+    if (!allowedStatuses.includes(status)) {
+      throw new ConflictError(
+        `Переход статуса из "${request.status}" в "${status}" запрещён.`,
+        'INVALID_REQUEST_STATUS_TRANSITION'
+      );
+    }
+
+    const changedAt = getNextUpdatedAt(request.updatedAt);
+    const updatedRequest = await requestRepository.update(
+      id,
+      {
+        status,
+        updatedAt: changedAt,
+      },
+      { transaction }
     );
-  }
 
-  return requestRepository.update(id, {
-    status,
-    updatedAt: getNextUpdatedAt(request.updatedAt),
+    await requestRepository.createStatusHistory(
+      {
+        requestId: id,
+        oldStatus: request.status,
+        newStatus: status,
+        author: 'api',
+        comment: null,
+        createdAt: changedAt,
+      },
+      { transaction }
+    );
+
+    return updatedRequest;
   });
+}
+
+export async function getRequestStatusHistory(id) {
+  await getRequest(id);
+  return requestRepository.findStatusHistoryByRequestId(id);
 }
 
 export async function deleteRequest(id) {
