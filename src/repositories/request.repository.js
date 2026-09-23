@@ -1,7 +1,9 @@
 import { ForeignKeyConstraintError, Op } from 'sequelize';
 import {
   MaintenanceRequest,
+  RequestAssignee,
   RequestStatusHistory,
+  Technician,
 } from '../db/models/index.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
 
@@ -14,6 +16,25 @@ const sortFields = {
   updatedAt: 'updated_at',
 };
 
+const requestAttributes = [
+  'id',
+  'equipment_id',
+  'title',
+  'description',
+  'priority',
+  'status',
+  'planned_at',
+  'created_at',
+  'updated_at',
+];
+
+const technicianAttributes = [
+  'id',
+  'full_name',
+  'specialization',
+  'employee_number',
+];
+
 function toIsoString(value) {
   return value ? new Date(value).toISOString() : null;
 }
@@ -23,7 +44,7 @@ function mapRequest(request) {
 
   const plainRequest = request.get({ plain: true });
 
-  return {
+  const result = {
     id: plainRequest.id,
     equipmentId: plainRequest.equipment_id,
     title: plainRequest.title,
@@ -33,6 +54,32 @@ function mapRequest(request) {
     plannedAt: toIsoString(plainRequest.planned_at),
     createdAt: toIsoString(plainRequest.created_at),
     updatedAt: toIsoString(plainRequest.updated_at),
+  };
+
+  if (Object.hasOwn(plainRequest, 'technicians')) {
+    result.assignees = plainRequest.technicians.map((technician) => ({
+      technicianId: technician.id,
+      fullName: technician.full_name,
+      specialization: technician.specialization,
+      employeeNumber: technician.employee_number,
+      role: technician.RequestAssignee.role,
+      hours: Number(technician.RequestAssignee.hours),
+    }));
+  }
+
+  return result;
+}
+
+function mapAssignment(assignment) {
+  const plainAssignment = assignment.get({ plain: true });
+
+  return {
+    technicianId: plainAssignment.technician_id,
+    fullName: plainAssignment.technician.full_name,
+    specialization: plainAssignment.technician.specialization,
+    employeeNumber: plainAssignment.technician.employee_number,
+    role: plainAssignment.role,
+    hours: Number(plainAssignment.hours),
   };
 }
 
@@ -96,17 +143,7 @@ function mapRequestChanges(changes) {
 export async function findAll(options) {
   const { sortBy, sortOrder, page, limit } = options;
   const { rows, count } = await MaintenanceRequest.findAndCountAll({
-    attributes: [
-      'id',
-      'equipment_id',
-      'title',
-      'description',
-      'priority',
-      'status',
-      'planned_at',
-      'created_at',
-      'updated_at',
-    ],
+    attributes: requestAttributes,
     where: buildWhere(options),
     order: [[sortFields[sortBy], sortOrder.toUpperCase()]],
     limit,
@@ -121,16 +158,17 @@ export async function findAll(options) {
 
 export async function findById(id) {
   const request = await MaintenanceRequest.findByPk(id, {
-    attributes: [
-      'id',
-      'equipment_id',
-      'title',
-      'description',
-      'priority',
-      'status',
-      'planned_at',
-      'created_at',
-      'updated_at',
+    attributes: requestAttributes,
+    include: [
+      {
+        model: Technician,
+        as: 'technicians',
+        attributes: technicianAttributes,
+        through: { attributes: ['role', 'hours'] },
+      },
+    ],
+    order: [
+      [{ model: Technician, as: 'technicians' }, 'employee_number', 'ASC'],
     ],
   });
 
@@ -139,17 +177,7 @@ export async function findById(id) {
 
 export async function findByIdForUpdate(id, transaction) {
   const request = await MaintenanceRequest.findByPk(id, {
-    attributes: [
-      'id',
-      'equipment_id',
-      'title',
-      'description',
-      'priority',
-      'status',
-      'planned_at',
-      'created_at',
-      'updated_at',
-    ],
+    attributes: requestAttributes,
     transaction,
     lock: transaction.LOCK.UPDATE,
   });
@@ -246,6 +274,78 @@ export async function findStatusHistoryByRequestId(requestId) {
   });
 
   return history.map(mapStatusHistory);
+}
+
+export async function findTechniciansByIds(ids, options = {}) {
+  return Technician.findAll({
+    attributes: ['id'],
+    where: { id: { [Op.in]: ids } },
+    transaction: options.transaction,
+  });
+}
+
+export async function findAssignmentsByRequestId(requestId, options = {}) {
+  const assignments = await RequestAssignee.findAll({
+    attributes: ['request_id', 'technician_id', 'role', 'hours'],
+    where: { request_id: requestId },
+    include: [
+      {
+        model: Technician,
+        as: 'technician',
+        attributes: technicianAttributes,
+        required: true,
+      },
+    ],
+    order: [
+      ['role', 'ASC'],
+      [{ model: Technician, as: 'technician' }, 'employee_number', 'ASC'],
+    ],
+    transaction: options.transaction,
+  });
+
+  return assignments.map(mapAssignment);
+}
+
+export async function deleteAssignmentsByRequestId(requestId, options = {}) {
+  return RequestAssignee.destroy({
+    where: { request_id: requestId },
+    transaction: options.transaction,
+  });
+}
+
+export async function createAssignments(requestId, assignees, options = {}) {
+  const now = new Date();
+
+  await RequestAssignee.bulkCreate(
+    assignees.map((assignee) => ({
+      request_id: requestId,
+      technician_id: assignee.technicianId,
+      role: assignee.role,
+      hours: assignee.hours,
+      created_at: now,
+      updated_at: now,
+    })),
+    { transaction: options.transaction }
+  );
+}
+
+export async function removeAssignee(requestId, technicianId, options = {}) {
+  const removedCount = await RequestAssignee.destroy({
+    where: {
+      request_id: requestId,
+      technician_id: technicianId,
+    },
+    transaction: options.transaction,
+  });
+
+  return removedCount > 0;
+}
+
+export async function countAssignees(requestId, options = {}) {
+  return RequestAssignee.count({
+    where: { request_id: requestId },
+    transaction: options.transaction,
+  });
 }
 
 export async function remove(id) {
