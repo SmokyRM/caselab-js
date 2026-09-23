@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "8c8e0b3a-65b8-48c5-8be8-d43495a826ae",
     "name": "CaseLab Maintenance API",
-    "description": "CaseLab Week 2 collection for the Equipment REST API, maintenance requests, equipment weather, validation and errors, and security middleware.",
+    "description": "CaseLab Week 2 + Week 3 collection for equipment, maintenance requests, weather, validation and security, PostgreSQL persistence, status history, request assignees, site summary, and equipment-load analytics.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -604,6 +604,54 @@
                   "  const data = pm.response.json().data;",
                   "  pm.expect(data).to.be.an(\"array\");",
                   "  data.forEach((item) => pm.expect(item.equipmentId).to.eql(pm.environment.get(\"equipmentId\")));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Week 3 compatibility: assign team before in_progress",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/requests/{{requestId}}/assignees",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assignees\": [\n    {\n      \"technicianId\": \"{{technicianId1}}\",\n      \"role\": \"lead\",\n      \"hours\": 4\n    },\n    {\n      \"technicianId\": \"{{technicianId2}}\",\n      \"role\": \"member\",\n      \"hours\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  pm.response.to.be.json;",
+                  "});",
+                  "pm.test(\"Team contains two expected technicians and one lead\", function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data).to.be.an(\"array\").with.lengthOf(2);",
+                  "  pm.expect(data.filter((item) => item.role === \"lead\")).to.have.lengthOf(1);",
+                  "  const ids = data.map((item) => item.technicianId);",
+                  "  pm.expect(ids).to.include(pm.environment.get(\"technicianId1\"));",
+                  "  pm.expect(ids).to.include(pm.environment.get(\"technicianId2\"));",
                   "});"
                 ]
               }
@@ -1556,6 +1604,1156 @@
                   "});"
                 ]
               }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 Week 3",
+      "item": [
+        {
+          "name": "01 Status History",
+          "item": [
+            {
+              "name": "Create Week 3 history request",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/requests",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"equipmentId\": \"{{seedEquipmentId}}\",\n  \"title\": \"Week 3 status history request\",\n  \"description\": \"Temporary Postman Week 3 request\",\n  \"priority\": \"medium\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 201\", function () {",
+                      "  pm.response.to.have.status(201);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Created request starts with new status\", function () {",
+                      "  const data = pm.response.json().data;",
+                      "  pm.expect(data.id).to.be.a(\"string\").and.not.empty;",
+                      "  pm.expect(data.equipmentId).to.eql(pm.environment.get(\"seedEquipmentId\"));",
+                      "  pm.expect(data.status).to.eql(\"new\");",
+                      "});",
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set(\"week3RequestId\", pm.response.json().data.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Assign team to Week 3 history request",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/requests/{{week3RequestId}}/assignees",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"assignees\": [\n    {\n      \"technicianId\": \"{{technicianId1}}\",\n      \"role\": \"lead\",\n      \"hours\": 4\n    },\n    {\n      \"technicianId\": \"{{technicianId2}}\",\n      \"role\": \"member\",\n      \"hours\": 2\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Team contains two expected technicians and one lead\", function () {",
+                      "  const data = pm.response.json().data;",
+                      "  pm.expect(data).to.be.an(\"array\").with.lengthOf(2);",
+                      "  pm.expect(data.filter((item) => item.role === \"lead\")).to.have.lengthOf(1);",
+                      "  const ids = data.map((item) => item.technicianId);",
+                      "  pm.expect(ids).to.include(pm.environment.get(\"technicianId1\"));",
+                      "  pm.expect(ids).to.include(pm.environment.get(\"technicianId2\"));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Change Week 3 request: new to in_progress",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/requests/{{week3RequestId}}/status",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"in_progress\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Request has expected status\", function () {",
+                      "  pm.expect(pm.response.json().data.status).to.eql(\"in_progress\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Change Week 3 request: in_progress to done",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/requests/{{week3RequestId}}/status",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"done\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Request has expected status\", function () {",
+                      "  pm.expect(pm.response.json().data.status).to.eql(\"done\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get Week 3 request status history",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/requests/{{week3RequestId}}/history"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"History is chronological and contains both transitions\", function () {",
+                      "  const data = pm.response.json().data;",
+                      "  pm.expect(data).to.be.an(\"array\");",
+                      "  pm.expect(data.length).to.be.at.least(2);",
+                      "  data.forEach((item) => {",
+                      "    pm.expect(item).to.include.all.keys(\"id\", \"requestId\", \"oldStatus\", \"newStatus\", \"author\", \"comment\", \"createdAt\");",
+                      "    pm.expect(item).not.to.have.property(\"request_id\");",
+                      "    pm.expect(item).not.to.have.property(\"new_status\");",
+                      "  });",
+                      "  pm.expect(data.some((item) => item.oldStatus === \"new\" && item.newStatus === \"in_progress\")).to.be.true;",
+                      "  pm.expect(data.some((item) => item.oldStatus === \"in_progress\" && item.newStatus === \"done\")).to.be.true;",
+                      "  for (let index = 1; index < data.length; index += 1) {",
+                      "    pm.expect(new Date(data[index - 1].createdAt).getTime()).to.be.at.most(new Date(data[index].createdAt).getTime());",
+                      "  }",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get Week 3 request detail with assignees",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/requests/{{week3RequestId}}"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Request detail exposes flat assignees\", function () {",
+                      "  const assignees = pm.response.json().data.assignees;",
+                      "  pm.expect(assignees).to.be.an(\"array\").and.not.empty;",
+                      "  pm.expect(assignees.filter((item) => item.role === \"lead\")).to.have.lengthOf(1);",
+                      "  assignees.forEach((item) => {",
+                      "    pm.expect(item).to.include.all.keys(\"technicianId\", \"fullName\", \"specialization\", \"employeeNumber\", \"role\", \"hours\");",
+                      "    pm.expect(item).not.to.have.property(\"technician_id\");",
+                      "    pm.expect(item).not.to.have.property(\"RequestAssignee\");",
+                      "  });",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get history for unknown request",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/requests/{{unknownUuid}}/history"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 404\", function () {",
+                      "  pm.response.to.have.status(404);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Error response structure\", function () {",
+                      "  const error = pm.response.json().error;",
+                      "  pm.expect(error).to.include.all.keys(\"code\", \"message\", \"details\", \"requestId\");",
+                      "});",
+                      "pm.test(\"Error code is REQUEST_NOT_FOUND\", function () {",
+                      "  pm.expect(pm.response.json().error.code).to.eql(\"REQUEST_NOT_FOUND\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "02 Assignees",
+          "item": [
+            {
+              "name": "Create Week 3 request without team",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/requests",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"equipmentId\": \"{{seedEquipmentId}}\",\n  \"title\": \"Week 3 assignee validation request\",\n  \"description\": \"Temporary Postman Week 3 request\",\n  \"priority\": \"medium\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 201\", function () {",
+                      "  pm.response.to.have.status(201);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Created request starts with new status\", function () {",
+                      "  const data = pm.response.json().data;",
+                      "  pm.expect(data.id).to.be.a(\"string\").and.not.empty;",
+                      "  pm.expect(data.equipmentId).to.eql(pm.environment.get(\"seedEquipmentId\"));",
+                      "  pm.expect(data.status).to.eql(\"new\");",
+                      "});",
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set(\"week3NoTeamRequestId\", pm.response.json().data.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reject in_progress without team",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/requests/{{week3NoTeamRequestId}}/status",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"in_progress\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 409\", function () {",
+                      "  pm.response.to.have.status(409);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Error response structure\", function () {",
+                      "  const error = pm.response.json().error;",
+                      "  pm.expect(error).to.include.all.keys(\"code\", \"message\", \"details\", \"requestId\");",
+                      "});",
+                      "pm.test(\"Error code is REQUEST_REQUIRES_ASSIGNEES\", function () {",
+                      "  pm.expect(pm.response.json().error.code).to.eql(\"REQUEST_REQUIRES_ASSIGNEES\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Verify request remains new without team",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/requests/{{week3NoTeamRequestId}}"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Request status is still new\", function () {",
+                      "  pm.expect(pm.response.json().data.status).to.eql(\"new\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Verify no history after blocked transition",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/requests/{{week3NoTeamRequestId}}/history"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"History is empty\", function () {",
+                      "  pm.expect(pm.response.json().data).to.be.an(\"array\").with.lengthOf(0);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reject team without lead",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/requests/{{week3NoTeamRequestId}}/assignees",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"assignees\": [\n    {\n      \"technicianId\": \"{{technicianId1}}\",\n      \"role\": \"member\",\n      \"hours\": 2\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 422\", function () {",
+                      "  pm.response.to.have.status(422);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Error response structure\", function () {",
+                      "  const error = pm.response.json().error;",
+                      "  pm.expect(error).to.include.all.keys(\"code\", \"message\", \"details\", \"requestId\");",
+                      "});",
+                      "pm.test(\"Error code is VALIDATION_ERROR\", function () {",
+                      "  pm.expect(pm.response.json().error.code).to.eql(\"VALIDATION_ERROR\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reject duplicate technician",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/requests/{{week3NoTeamRequestId}}/assignees",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"assignees\": [\n    {\n      \"technicianId\": \"{{technicianId1}}\",\n      \"role\": \"lead\",\n      \"hours\": 2\n    },\n    {\n      \"technicianId\": \"{{technicianId1}}\",\n      \"role\": \"member\",\n      \"hours\": 3\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 409\", function () {",
+                      "  pm.response.to.have.status(409);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Error response structure\", function () {",
+                      "  const error = pm.response.json().error;",
+                      "  pm.expect(error).to.include.all.keys(\"code\", \"message\", \"details\", \"requestId\");",
+                      "});",
+                      "pm.test(\"Error code is REQUEST_ASSIGNEE_CONFLICT\", function () {",
+                      "  pm.expect(pm.response.json().error.code).to.eql(\"REQUEST_ASSIGNEE_CONFLICT\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reject unknown technician",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/requests/{{week3NoTeamRequestId}}/assignees",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"assignees\": [\n    {\n      \"technicianId\": \"{{unknownUuid}}\",\n      \"role\": \"lead\",\n      \"hours\": 2\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 404\", function () {",
+                      "  pm.response.to.have.status(404);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Error response structure\", function () {",
+                      "  const error = pm.response.json().error;",
+                      "  pm.expect(error).to.include.all.keys(\"code\", \"message\", \"details\", \"requestId\");",
+                      "});",
+                      "pm.test(\"Error code is TECHNICIAN_NOT_FOUND\", function () {",
+                      "  pm.expect(pm.response.json().error.code).to.eql(\"TECHNICIAN_NOT_FOUND\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Assign valid team after negative tests",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/requests/{{week3NoTeamRequestId}}/assignees",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"assignees\": [\n    {\n      \"technicianId\": \"{{technicianId1}}\",\n      \"role\": \"lead\",\n      \"hours\": 4\n    },\n    {\n      \"technicianId\": \"{{technicianId2}}\",\n      \"role\": \"member\",\n      \"hours\": 2\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Team contains two expected technicians and one lead\", function () {",
+                      "  const data = pm.response.json().data;",
+                      "  pm.expect(data).to.be.an(\"array\").with.lengthOf(2);",
+                      "  pm.expect(data.filter((item) => item.role === \"lead\")).to.have.lengthOf(1);",
+                      "  const ids = data.map((item) => item.technicianId);",
+                      "  pm.expect(ids).to.include(pm.environment.get(\"technicianId1\"));",
+                      "  pm.expect(ids).to.include(pm.environment.get(\"technicianId2\"));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Delete member assignee",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{baseUrl}}/api/requests/{{week3NoTeamRequestId}}/assignees/{{technicianId2}}"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 204\", function () {",
+                      "  pm.response.to.have.status(204);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Verify only lead remains",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/requests/{{week3NoTeamRequestId}}"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Only the lead remains\", function () {",
+                      "  const assignees = pm.response.json().data.assignees;",
+                      "  pm.expect(assignees).to.have.lengthOf(1);",
+                      "  pm.expect(assignees[0].technicianId).to.eql(pm.environment.get(\"technicianId1\"));",
+                      "  pm.expect(assignees[0].role).to.eql(\"lead\");",
+                      "  pm.expect(assignees[0].hours).to.eql(4);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Delete missing member assignee",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{baseUrl}}/api/requests/{{week3NoTeamRequestId}}/assignees/{{technicianId2}}"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 404\", function () {",
+                      "  pm.response.to.have.status(404);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Error response structure\", function () {",
+                      "  const error = pm.response.json().error;",
+                      "  pm.expect(error).to.include.all.keys(\"code\", \"message\", \"details\", \"requestId\");",
+                      "});",
+                      "pm.test(\"Error code is REQUEST_ASSIGNEE_NOT_FOUND\", function () {",
+                      "  pm.expect(pm.response.json().error.code).to.eql(\"REQUEST_ASSIGNEE_NOT_FOUND\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "03 Site Summary",
+          "item": [
+            {
+              "name": "Get seeded site summary",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/sites/{{seedSiteId}}/summary"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Site summary structure is valid\", function () {",
+                      "  const data = pm.response.json().data;",
+                      "  pm.expect(data.site.id).to.eql(pm.environment.get(\"seedSiteId\"));",
+                      "  pm.expect(data.site).to.include.all.keys(\"id\", \"name\", \"code\", \"region\");",
+                      "  pm.expect(data.requests.total).to.be.a(\"number\");",
+                      "  pm.expect(data.requests.byStatus).to.include.all.keys(\"new\", \"in_progress\", \"done\", \"rejected\");",
+                      "  pm.expect(data.requests.byPriority).to.include.all.keys(\"low\", \"medium\", \"high\", \"critical\");",
+                      "  pm.expect(data.requests.averageCloseHours === null || typeof data.requests.averageCloseHours === \"number\").to.be.true;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get unknown site summary",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/sites/{{unknownUuid}}/summary"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 404\", function () {",
+                      "  pm.response.to.have.status(404);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Error response structure\", function () {",
+                      "  const error = pm.response.json().error;",
+                      "  pm.expect(error).to.include.all.keys(\"code\", \"message\", \"details\", \"requestId\");",
+                      "});",
+                      "pm.test(\"Error code is SITE_NOT_FOUND\", function () {",
+                      "  pm.expect(pm.response.json().error.code).to.eql(\"SITE_NOT_FOUND\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "04 Equipment Load",
+          "item": [
+            {
+              "name": "Get equipment load report",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/reports/equipment-load"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Equipment load rows have expected types\", function () {",
+                      "  const data = pm.response.json().data;",
+                      "  pm.expect(data).to.be.an(\"array\");",
+                      "  pm.expect(data.length).to.be.at.least(6);",
+                      "  data.forEach((item) => {",
+                      "    pm.expect(item).to.include.all.keys(\"equipmentId\", \"equipmentName\", \"serialNumber\", \"requestCount\", \"closedRequestCount\", \"totalPlannedHours\", \"lastMaintenanceAt\");",
+                      "    pm.expect(item.requestCount).to.be.a(\"number\");",
+                      "    pm.expect(item.closedRequestCount).to.be.a(\"number\");",
+                      "    pm.expect(item.totalPlannedHours).to.be.a(\"number\");",
+                      "    pm.expect(item.lastMaintenanceAt === null || typeof item.lastMaintenanceAt === \"string\").to.be.true;",
+                      "  });",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get equipment load with minimum requests",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/reports/equipment-load?minRequests=4"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Every group satisfies minRequests\", function () {",
+                      "  pm.response.json().data.forEach((item) => pm.expect(item.requestCount).to.be.at.least(4));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get equipment load for period",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/reports/equipment-load?from=2026-07-01&to=2026-09-30"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Period report returns an array\", function () {",
+                      "  pm.expect(pm.response.json().data).to.be.an(\"array\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get equipment load first page",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/reports/equipment-load?limit=2&offset=0"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Page contains at most two rows\", function () {",
+                      "  pm.expect(pm.response.json().data.length).to.be.at.most(2);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "05 Week 3 Validation & Errors",
+          "item": [
+            {
+              "name": "Reject equipment load limit above maximum",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/reports/equipment-load?limit=101"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 400\", function () {",
+                      "  pm.response.to.have.status(400);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Error response structure\", function () {",
+                      "  const error = pm.response.json().error;",
+                      "  pm.expect(error).to.include.all.keys(\"code\", \"message\", \"details\", \"requestId\");",
+                      "});",
+                      "pm.test(\"Error code is INVALID_PAGINATION\", function () {",
+                      "  pm.expect(pm.response.json().error.code).to.eql(\"INVALID_PAGINATION\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reject negative equipment load offset",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/reports/equipment-load?offset=-1"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 400\", function () {",
+                      "  pm.response.to.have.status(400);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Error response structure\", function () {",
+                      "  const error = pm.response.json().error;",
+                      "  pm.expect(error).to.include.all.keys(\"code\", \"message\", \"details\", \"requestId\");",
+                      "});",
+                      "pm.test(\"Error code is INVALID_PAGINATION\", function () {",
+                      "  pm.expect(pm.response.json().error.code).to.eql(\"INVALID_PAGINATION\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reject invalid equipment load date",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/reports/equipment-load?from=not-a-date"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 422\", function () {",
+                      "  pm.response.to.have.status(422);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Error response structure\", function () {",
+                      "  const error = pm.response.json().error;",
+                      "  pm.expect(error).to.include.all.keys(\"code\", \"message\", \"details\", \"requestId\");",
+                      "});",
+                      "pm.test(\"Error code is VALIDATION_ERROR\", function () {",
+                      "  pm.expect(pm.response.json().error.code).to.eql(\"VALIDATION_ERROR\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reject reversed equipment load period",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/reports/equipment-load?from=2026-12-31&to=2026-01-01"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 422\", function () {",
+                      "  pm.response.to.have.status(422);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Error response structure\", function () {",
+                      "  const error = pm.response.json().error;",
+                      "  pm.expect(error).to.include.all.keys(\"code\", \"message\", \"details\", \"requestId\");",
+                      "});",
+                      "pm.test(\"Error code is VALIDATION_ERROR\", function () {",
+                      "  pm.expect(pm.response.json().error.code).to.eql(\"VALIDATION_ERROR\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reject SQL-injection-like report date",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/reports/equipment-load?from=2026-01-01%27%20OR%201%3D1--"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 422\", function () {",
+                      "  pm.response.to.have.status(422);",
+                      "});",
+                      "pm.test(\"Response is JSON\", function () {",
+                      "  pm.response.to.be.json;",
+                      "});",
+                      "pm.test(\"Error response structure\", function () {",
+                      "  const error = pm.response.json().error;",
+                      "  pm.expect(error).to.include.all.keys(\"code\", \"message\", \"details\", \"requestId\");",
+                      "});",
+                      "pm.test(\"Error code is VALIDATION_ERROR\", function () {",
+                      "  pm.expect(pm.response.json().error.code).to.eql(\"VALIDATION_ERROR\");",
+                      "});",
+                      "pm.test(\"No SQL details are exposed\", function () {",
+                      "  const body = JSON.stringify(pm.response.json()).toLowerCase();",
+                      "  pm.expect(body).not.to.include(\"sequelize\");",
+                      "  pm.expect(body).not.to.include(\"select \");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "06 Cleanup",
+          "item": [
+            {
+              "name": "Delete Week 3 history request",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{baseUrl}}/api/requests/{{week3RequestId}}"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 204\", function () {",
+                      "  pm.response.to.have.status(204);",
+                      "});",
+                      "pm.environment.unset(\"week3RequestId\");"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Delete Week 3 assignee request",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{baseUrl}}/api/requests/{{week3NoTeamRequestId}}"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 204\", function () {",
+                      "  pm.response.to.have.status(204);",
+                      "});",
+                      "pm.environment.unset(\"week3NoTeamRequestId\");"
+                    ]
+                  }
+                }
+              ]
             }
           ]
         }
