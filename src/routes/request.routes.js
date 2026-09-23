@@ -3,6 +3,8 @@ import * as requestController from '../controllers/request.controller.js';
 import { validate } from '../middlewares/validate.js';
 import {
   createRequestSchema,
+  requestAssigneeIdSchema,
+  requestAssigneesSchema,
   requestIdSchema,
   requestListQuerySchema,
   requestStatusSchema,
@@ -27,6 +29,18 @@ requestRouter.get(
   '/:id/history',
   validate({ params: requestIdSchema }),
   requestController.getRequestStatusHistory
+);
+
+requestRouter.post(
+  '/:id/assignees',
+  validate({ params: requestIdSchema, body: requestAssigneesSchema }),
+  requestController.replaceRequestAssignees
+);
+
+requestRouter.delete(
+  '/:id/assignees/:userId',
+  validate({ params: requestAssigneeIdSchema }),
+  requestController.removeRequestAssignee
 );
 
 requestRouter.get(
