@@ -51,6 +51,29 @@ export async function changeRequestStatus(request, response) {
   response.status(200).json({ data: maintenanceRequest });
 }
 
+export async function getRequestStatusHistory(request, response) {
+  const history = await requestService.getRequestStatusHistory(
+    request.validated.params.id
+  );
+  response.status(200).json({ data: history });
+}
+
+export async function replaceRequestAssignees(request, response) {
+  const assignees = await requestService.replaceRequestAssignees(
+    request.validated.params.id,
+    request.validated.body.assignees
+  );
+  response.status(200).json({ data: assignees });
+}
+
+export async function removeRequestAssignee(request, response) {
+  await requestService.removeRequestAssignee(
+    request.validated.params.id,
+    request.validated.params.userId
+  );
+  response.status(204).send();
+}
+
 export async function deleteRequest(request, response) {
   await requestService.deleteRequest(request.validated.params.id);
   response.status(204).send();

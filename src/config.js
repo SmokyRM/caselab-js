@@ -13,6 +13,14 @@ const DEFAULT_CORS_ORIGINS = ['http://localhost:3000', 'http://localhost:5173'];
 const DEFAULT_RATE_LIMIT_WINDOW_MS = 60000;
 const DEFAULT_RATE_LIMIT_MAX = 100;
 const DEFAULT_LOG_LEVEL = 'info';
+const DEFAULT_DB_HOST = 'localhost';
+const DEFAULT_DB_PORT = 5432;
+const DEFAULT_DB_NAME = 'caselab';
+const DEFAULT_DB_USER = 'caselab';
+const DEFAULT_DB_POOL_MAX = 10;
+const DEFAULT_DB_POOL_MIN = 0;
+const DEFAULT_DB_POOL_ACQUIRE_MS = 30000;
+const DEFAULT_DB_POOL_IDLE_MS = 10000;
 
 function getEnvValue(name, defaultValue) {
   const value = process.env[name];
@@ -33,6 +41,14 @@ function getNumberEnvValue(name, defaultValue, isValid) {
   return value && Number.isFinite(number) && isValid(number)
     ? number
     : defaultValue;
+}
+
+function getIntegerEnvValue(name, defaultValue, isValid) {
+  return getNumberEnvValue(
+    name,
+    defaultValue,
+    (value) => Number.isInteger(value) && isValid(value)
+  );
 }
 
 function getListEnvValue(name, defaultValue) {
@@ -114,4 +130,42 @@ export const LOG_LEVEL = getAllowedEnvValue(
   'LOG_LEVEL',
   ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'],
   DEFAULT_LOG_LEVEL
+);
+
+export const DB_HOST = getEnvValue('DB_HOST', DEFAULT_DB_HOST);
+
+export const DB_PORT = getIntegerEnvValue(
+  'DB_PORT',
+  DEFAULT_DB_PORT,
+  (value) => value > 0
+);
+
+export const DB_NAME = getEnvValue('DB_NAME', DEFAULT_DB_NAME);
+
+export const DB_USER = getEnvValue('DB_USER', DEFAULT_DB_USER);
+
+export const DB_PASSWORD = process.env.DB_PASSWORD?.trim();
+
+export const DB_POOL_MAX = getIntegerEnvValue(
+  'DB_POOL_MAX',
+  DEFAULT_DB_POOL_MAX,
+  (value) => value > 0
+);
+
+export const DB_POOL_MIN = getIntegerEnvValue(
+  'DB_POOL_MIN',
+  DEFAULT_DB_POOL_MIN,
+  (value) => value >= 0 && value <= DB_POOL_MAX
+);
+
+export const DB_POOL_ACQUIRE_MS = getIntegerEnvValue(
+  'DB_POOL_ACQUIRE_MS',
+  DEFAULT_DB_POOL_ACQUIRE_MS,
+  (value) => value > 0
+);
+
+export const DB_POOL_IDLE_MS = getIntegerEnvValue(
+  'DB_POOL_IDLE_MS',
+  DEFAULT_DB_POOL_IDLE_MS,
+  (value) => value > 0
 );

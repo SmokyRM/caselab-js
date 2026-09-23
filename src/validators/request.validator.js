@@ -82,6 +82,42 @@ export const requestStatusSchema = z.object({
   }),
 });
 
+const requestAssigneeSchema = z.object({
+  technicianId: z.uuid('Некорректный идентификатор специалиста.'),
+  role: z.enum(['lead', 'member'], {
+    error: 'Роль специалиста должна быть lead или member.',
+  }),
+  hours: z
+    .number()
+    .positive('Количество часов должно быть больше 0.')
+    .max(1000, 'Количество часов должно быть не более 1000.'),
+});
+
+export const requestAssigneesSchema = z
+  .object({
+    assignees: z
+      .array(requestAssigneeSchema)
+      .min(1, 'Команда должна содержать минимум одного специалиста.'),
+  })
+  .superRefine((data, context) => {
+    const leadCount = data.assignees.filter(
+      (assignee) => assignee.role === 'lead'
+    ).length;
+
+    if (leadCount !== 1) {
+      context.addIssue({
+        code: 'custom',
+        path: ['assignees'],
+        message: 'Команда должна содержать ровно одного lead.',
+      });
+    }
+  });
+
+export const requestAssigneeIdSchema = z.object({
+  id: z.uuid('Некорректный идентификатор заявки.'),
+  userId: z.uuid('Некорректный идентификатор специалиста.'),
+});
+
 export const requestListQuerySchema = z
   .object({
     status: z

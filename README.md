@@ -1,212 +1,57 @@
 # CaseLab JavaScript / Full-Stack
 
-Учебный репозиторий CaseLab с двумя связанными проектами на современном JavaScript и Node.js.
+Учебный Node.js-проект: погодная CLI-утилита и REST API для учёта оборудования и заявок на обслуживание. Текущая версия API использует PostgreSQL, Sequelize migrations, транзакции и SQL-отчёты.
 
 ## Cases
 
-- **Case 1 — Weather CLI:** консольная утилита для получения, форматирования и кэширования прогноза Open-Meteo.
-- **Case 2 — Maintenance REST API:** Express API для оборудования, заявок на обслуживание и проверки погодных условий для наружных работ.
+- **Case 1 — Weather CLI.** Получает прогноз Open-Meteo для нескольких городов, выводит таблицу, сохраняет JSON-отчёты и использует их как кэш.
+- **Case 2 — Maintenance REST API.** Добавляет Express API для оборудования, заявок и прогноза условий наружных работ.
+- **Case 3 — PostgreSQL and analytics.** Сохраняет API Case 2, переносит runtime storage в PostgreSQL и добавляет связи, assignees, историю статусов и отчёты.
 
-## Требования
+## Stack
 
-- Node.js 20 или новее;
-- npm.
+- Node.js 20+ и ESM;
+- Express 5 и Zod;
+- PostgreSQL 16;
+- Sequelize 6 и sequelize-cli;
+- Docker Compose;
+- Pino, Helmet, CORS и express-rate-limit;
+- Open-Meteo API;
+- ESLint и Prettier;
+- Postman/Newman.
 
-HTTP-запросы к Open-Meteo выполняются встроенной функцией `fetch`. API key не требуется.
+## Quick Start
 
-## Установка
+Требуются Node.js 20+, npm, Docker Engine или Docker Desktop и Docker Compose.
 
 ```bash
 git clone https://github.com/SmokyRM/caselab-js.git
 cd caselab-js
 npm ci
-```
-
-После клонирования предпочтительно использовать `npm ci`: команда устанавливает зависимости точно по существующему `package-lock.json`. Для обычной локальной разработки также доступен `npm install`.
-
-# Case 1 — Weather CLI
-
-Консольная Node.js-утилита получает прогноз погоды через Open-Meteo для одного или нескольких городов.
-
-Основные возможности:
-
-- поиск координат города через Open-Meteo Geocoding API;
-- получение прогноза погоды на срок от 1 до 7 дней;
-- параллельная обработка нескольких городов через `Promise.allSettled`;
-- читаемый табличный вывод в консоль;
-- сохранение успешных результатов в JSON;
-- использование подходящего отчёта за текущий день как кэша;
-- принудительное обновление данных с флагом `--no-cache`;
-- обработка ошибок аргументов, HTTP, сети, JSON и превышения времени ожидания;
-- настройка API, тайм-аута, каталога отчётов и единиц измерения через переменные окружения.
-
-## Запуск Weather CLI
-
-Прогноз для одного города:
-
-```bash
-npm run weather -- --city Москва --days 3
-```
-
-Прогноз для нескольких городов:
-
-```bash
-npm run weather -- --city "Москва,Казань" --days 3
-```
-
-Принудительное получение свежих данных без чтения кэша:
-
-```bash
-npm run weather -- --city Москва --days 3 --no-cache
-```
-
-## CLI-параметры
-
-| Параметр     | Обязательный | Описание                                                |
-| ------------ | ------------ | ------------------------------------------------------- |
-| `--city`     | Да           | Город или список городов через запятую.                 |
-| `--days`     | Нет          | Количество дней прогноза от 1 до 7. По умолчанию — `3`. |
-| `--no-cache` | Нет          | Игнорирует сегодняшний кэш и выполняет новый запрос.    |
-
-Примеры:
-
-```bash
-npm run weather -- --city "Нижний Новгород"
-npm run weather -- --city "Москва,Казань,Нижний Новгород" --days 5
-npm run weather -- --city Москва --days 1 --no-cache
-```
-
-## Переменные окружения Weather CLI
-
-| Переменная           | Значение по умолчанию                            | Назначение                                               |
-| -------------------- | ------------------------------------------------ | -------------------------------------------------------- |
-| `GEOCODING_API_URL`  | `https://geocoding-api.open-meteo.com/v1/search` | URL API поиска координат города.                         |
-| `FORECAST_API_URL`   | `https://api.open-meteo.com/v1/forecast`         | URL API прогноза погоды.                                 |
-| `REQUEST_TIMEOUT_MS` | `5000`                                           | Максимальное время ожидания HTTP-ответа в миллисекундах. |
-| `REPORTS_DIR`        | `reports`                                        | Каталог для отчётов и кэша.                              |
-| `TEMPERATURE_UNIT`   | `celsius`                                        | Единица температуры: `celsius` или `fahrenheit`.         |
-| `PRECIPITATION_UNIT` | `mm`                                             | Единица осадков: `mm` или `inch`.                        |
-
-Обычный npm script не читает файл `.env` автоматически, потому что пакет `dotenv` не используется. Переменную можно передать для одного запуска:
-
-```bash
-TEMPERATURE_UNIT=fahrenheit npm run weather -- --city Москва --days 1 --no-cache
-```
-
-Либо можно создать `.env` из примера и использовать встроенный параметр Node.js:
-
-```bash
 cp .env.example .env
-node --env-file=.env src/index.js --city Москва --days 3
 ```
 
-Файл `.env` предназначен для локальных настроек и не коммитится.
+Укажите локальный пароль PostgreSQL в `.env`:
 
-## Пример вывода CLI
-
-```text
-Москва, Россия
-Координаты: 55.75204, 37.61781
-
-Дата         Мин.       Макс.      Осадки
-2026-09-11   11.6 °C    17.6 °C    8.2 мм
-Отчёт сохранён: reports/Москва-2026-09-11.json
+```dotenv
+DB_PASSWORD=your_local_password
 ```
 
-## Кэш и отчёты
-
-По умолчанию успешные результаты сохраняются в каталоге `reports/`:
-
-```text
-reports/{город}-{YYYY-MM-DD}.json
-```
-
-Подходящий отчёт за текущий день используется как кэш. Город и дата определяются именем файла, а объект `cacheInfo` внутри JSON хранит:
-
-- `days`;
-- `temperatureUnit`;
-- `precipitationUnit`.
-
-Если `cacheInfo` отсутствует или его параметры не совпадают с текущим запросом, файл считается cache miss и приложение обращается к Open-Meteo. Флаг `--no-cache` всегда пропускает чтение существующего кэша.
-
-Каталог `reports/` добавлен в `.gitignore` и не попадает в репозиторий.
-
-## Ошибки и exit codes CLI
-
-CLI обрабатывает следующие случаи:
-
-- отсутствует обязательный параметр `--city`;
-- значение `--days` не является целым числом от 1 до 7;
-- передан неизвестный аргумент;
-- город не найден;
-- Open-Meteo вернул HTTP 4xx или HTTP 5xx;
-- произошла сетевая ошибка;
-- превышено время ожидания ответа;
-- API вернул некорректный JSON;
-- JSON-файл кэша повреждён.
-
-Города обрабатываются через `Promise.allSettled`, поэтому ошибка одного города не останавливает получение и вывод данных для остальных.
-
-- `0` — все запрошенные города обработаны успешно;
-- `1` — произошла ошибка аргументов или хотя бы один город завершился ошибкой.
-
-## Как работает Weather CLI
-
-```text
-CLI
- ↓
-проверка кэша
- ├─ cache hit  → готовые данные без обращения к API
- └─ cache miss → Geocoding API → Forecast API → готовые данные
- ↓
-JSON report
- ↓
-вывод в консоль
-```
-
-Запросы разных городов запускаются параллельно. Внутри обработки одного города геокодинг и запрос прогноза выполняются последовательно, потому что для прогноза сначала нужны координаты.
-
-Основные модули Weather CLI:
-
-- `src/index.js` — точка входа, запуск CLI, вывод результатов и установка exit code;
-- `src/config.js` — чтение, проверка и значения по умолчанию для переменных окружения;
-- `src/cli/arguments.js` — разбор и валидация аргументов командной строки;
-- `src/api/openMeteo.js` — HTTP-запросы геокодинга и прогноза к Open-Meteo;
-- `src/services/weatherService.js` — проверка кэша и обработка одного или нескольких городов;
-- `src/storage/reportStorage.js` — чтение и сохранение JSON-отчётов;
-- `src/format/consoleFormatter.js` — преобразование прогноза в строку для консоли.
-
-## Postman Case 1
-
-Коллекция находится по пути:
-
-```text
-docs/postman/CaseLab Weather Digest.postman_collection.json
-```
-
-Postman Collection v2.1 содержит запросы Geocoding и Forecast, переменные коллекции, а также сохранённые примеры успешных ответов, города без результата и HTTP 400 для некорректных параметров.
-
-# Case 2 — Maintenance REST API
-
-REST API предназначен для учёта оборудования, заявок на техническое обслуживание, состояния заявок и погодных условий для наружных работ.
-
-Week 2 использует **in-memory repositories**. Оборудование и заявки хранятся только в памяти процесса и сбрасываются после перезапуска сервера. Доступ к данным из business logic выполняется через repository layer, поэтому способ хранения можно заменить без переноса бизнес-правил в controllers.
-
-## Запуск REST API
+Запустите БД, дождитесь состояния `healthy`, примените migrations и seeds:
 
 ```bash
+npm run db:up
+docker compose ps
+npm run db:migrate
+npm run db:seed
 npm start
 ```
 
-По умолчанию сервер доступен по адресу `http://localhost:3000`.
-
-Проверка состояния:
+Проверка API:
 
 ```http
 GET http://localhost:3000/api/health
 ```
-
-Успешный ответ:
 
 ```json
 {
@@ -214,51 +59,18 @@ GET http://localhost:3000/api/health
 }
 ```
 
-Case 1 при этом остаётся доступен отдельной командой:
+Weather CLI запускается отдельно:
 
 ```bash
-npm run weather -- --city Москва --days 3
+npm run weather -- --city "Москва,Казань" --days 3
+npm run weather -- --city Москва --days 1 --no-cache
 ```
 
-## Переменные окружения
+Параметр `--city` обязателен, `--days` принимает значения от 1 до 7, а `--no-cache` пропускает чтение сегодняшнего отчёта.
 
-Все поддерживаемые переменные перечислены в `.env.example` и обрабатываются в `src/config.js`.
+## Architecture
 
-| Variable                    | Description                                          | Default / Example                                |
-| --------------------------- | ---------------------------------------------------- | ------------------------------------------------ |
-| `PORT`                      | Порт Express API.                                    | `3000`                                           |
-| `NODE_ENV`                  | Название окружения, отображаемое при старте сервера. | `development`                                    |
-| `GEOCODING_API_URL`         | URL геокодинга Open-Meteo для Case 1.                | `https://geocoding-api.open-meteo.com/v1/search` |
-| `FORECAST_API_URL`          | URL прогноза Open-Meteo для обоих кейсов.            | `https://api.open-meteo.com/v1/forecast`         |
-| `REQUEST_TIMEOUT_MS`        | Timeout запросов к Open-Meteo, мс.                   | `5000`                                           |
-| `REPORTS_DIR`               | Каталог отчётов и кэша Weather CLI.                  | `reports`                                        |
-| `TEMPERATURE_UNIT`          | Единица температуры: `celsius` или `fahrenheit`.     | `celsius`                                        |
-| `PRECIPITATION_UNIT`        | Единица осадков Weather CLI: `mm` или `inch`.        | `mm`                                             |
-| `OUTDOOR_MAX_PRECIPITATION` | Максимальные осадки для наружных работ.              | `0` мм                                           |
-| `OUTDOOR_MAX_WIND_SPEED`    | Максимальная скорость ветра для наружных работ.      | `36` км/ч                                        |
-| `CORS_ORIGINS`              | Разрешённые Origin через запятую.                    | `http://localhost:3000,http://localhost:5173`    |
-| `RATE_LIMIT_WINDOW_MS`      | Размер окна rate limit, мс.                          | `60000`                                          |
-| `RATE_LIMIT_MAX`            | Максимум запросов к `/api` в одном окне.             | `100`                                            |
-| `LOG_LEVEL`                 | Уровень логирования Pino.                            | `info`                                           |
-
-Файл `.env` не загружается автоматически: проект не использует `dotenv`. Для запуска API с файлом окружения используйте встроенную поддержку Node.js:
-
-```bash
-cp .env.example .env
-node --env-file=.env src/server.js
-```
-
-Для одной переменной достаточно shell-синтаксиса:
-
-```bash
-PORT=4000 npm start
-```
-
-Не добавляйте локальный `.env` в Git.
-
-## Архитектура
-
-Основной путь HTTP-запроса:
+HTTP-запрос проходит через слои:
 
 ```text
 routes
@@ -266,361 +78,251 @@ routes
   → controllers
   → services
   → repositories
+  → Sequelize / raw SQL
+  → PostgreSQL
 ```
 
-- **Routes** связывают HTTP method и URL с middleware и controller.
-- **Controllers** получают проверенные данные запроса и формируют HTTP response.
-- **Services** содержат бизнес-правила и координируют операции.
-- **Repositories** предоставляют абстракцию доступа к in-memory данным.
-- **Validators** описывают Zod-схемы для body, params и query.
-- **Middlewares** реализуют общие HTTP-задачи: request ID, logging, Helmet, CORS, rate limit, JSON parsing, validation и обработку ошибок.
-- **Errors** задают типы ошибок приложения, HTTP statuses и стабильные error codes.
+- Routes связывают URL с validation middleware и controller.
+- Controllers формируют HTTP response.
+- Services содержат бизнес-правила и транзакции.
+- Repositories выполняют DB queries.
+- Models задают Sequelize mappings и associations.
+- Migrations управляют схемой, seeders добавляют demo data.
+- Analytics repository использует параметризованный raw SQL.
 
-## Структура проекта
+Основные каталоги:
 
 ```text
+database/
+├── migrations/
+├── seeders/
+├── config.cjs
+└── seed-ids.cjs
+docs/postman/
 src/
 ├── api/
-│   └── openMeteo.js
-├── cli/
-│   └── arguments.js
 ├── controllers/
-│   ├── equipment.controller.js
-│   ├── equipmentWeather.controller.js
-│   └── request.controller.js
+├── db/
+│   ├── models/
+│   ├── database.js
+│   └── sequelize.js
 ├── errors/
-├── format/
-│   └── consoleFormatter.js
 ├── middlewares/
 ├── repositories/
-│   ├── equipment.repository.js
-│   └── request.repository.js
 ├── routes/
-│   ├── equipment.routes.js
-│   ├── health.routes.js
-│   └── request.routes.js
 ├── services/
-│   ├── equipment.service.js
-│   ├── equipmentWeather.service.js
-│   ├── request.service.js
-│   └── weatherService.js
-├── storage/
-│   └── reportStorage.js
 ├── validators/
 ├── app.js
 ├── config.js
-├── index.js
-├── logger.js
 └── server.js
-docs/
-└── postman/
-    ├── CaseLab Maintenance API.postman_collection.json
-    ├── CaseLab Maintenance API.postman_environment.json
-    └── CaseLab Weather Digest.postman_collection.json
-.env.example
-package.json
-README.md
+docker-compose.yml
+.sequelizerc
 ```
 
-## Equipment model
+## Database
 
-| Поле           | Описание                                                           |
-| -------------- | ------------------------------------------------------------------ |
-| `id`           | UUID, генерируется сервером.                                       |
-| `name`         | Название длиной от 3 до 100 символов.                              |
-| `type`         | Тип оборудования.                                                  |
-| `serialNumber` | Непустой уникальный серийный номер.                                |
-| `location`     | Координаты `{ lat, lon }`: lat от -90 до 90, lon от -180 до 180.   |
-| `status`       | Текущее состояние оборудования.                                    |
-| `installedAt`  | Реальная дата `YYYY-MM-DD`, которая не может находиться в будущем. |
+### ER Diagram
 
-Допустимые значения `type`: `turbine`, `inverter`, `sensor`, `substation`.
+```mermaid
+erDiagram
+  SITE ||--o{ EQUIPMENT : contains
+  EQUIPMENT ||--|| EQUIPMENT_PASSPORT : has
+  EQUIPMENT ||--o{ MAINTENANCE_REQUEST : receives
+  MAINTENANCE_REQUEST ||--o{ REQUEST_STATUS_HISTORY : records
+  MAINTENANCE_REQUEST ||--o{ REQUEST_ASSIGNEE : has
+  TECHNICIAN ||--o{ REQUEST_ASSIGNEE : assigned
 
-Допустимые значения `status`: `operational`, `maintenance`, `fault`, `decommissioned`.
+  SITE {
+    uuid id PK
+    string code UK
+    string name
+    string region
+    decimal lat
+    decimal lon
+  }
 
-`serialNumber` должен быть уникальным. Попытка создать или обновить оборудование с уже существующим серийным номером возвращает `409 Conflict` с кодом `EQUIPMENT_SERIAL_CONFLICT`.
+  EQUIPMENT {
+    uuid id PK
+    uuid site_id FK
+    string serial_number UK
+    string name
+    enum type
+    enum status
+  }
 
-## Maintenance Request model
+  EQUIPMENT_PASSPORT {
+    uuid id PK
+    uuid equipment_id FK, UK
+    string manufacturer
+    string model
+    decimal rated_power
+  }
 
-| Поле          | Описание                                             |
-| ------------- | ---------------------------------------------------- |
-| `id`          | UUID, генерируется сервером.                         |
-| `equipmentId` | UUID существующего оборудования.                     |
-| `title`       | Название заявки длиной от 5 до 120 символов.         |
-| `description` | Необязательное описание длиной до 2000 символов.     |
-| `priority`    | Приоритет заявки.                                    |
-| `status`      | При создании сервер устанавливает `new`.             |
-| `plannedAt`   | Необязательная дата и время в формате ISO date-time. |
-| `createdAt`   | ISO date-time, генерируется сервером.                |
-| `updatedAt`   | ISO date-time, генерируется и обновляется сервером.  |
+  MAINTENANCE_REQUEST {
+    uuid id PK
+    uuid equipment_id FK
+    string title
+    enum priority
+    enum status
+    string author
+  }
 
-Допустимые значения `priority`: `low`, `medium`, `high`, `critical`.
+  REQUEST_STATUS_HISTORY {
+    uuid id PK
+    uuid request_id FK
+    enum old_status
+    enum new_status
+    string author
+  }
 
-Допустимые значения `status`: `new`, `in_progress`, `done`, `rejected`.
+  TECHNICIAN {
+    uuid id PK
+    string employee_number UK
+    string full_name
+    string specialization
+  }
 
-`equipmentId` должен ссылаться на существующее оборудование. Если оборудование не найдено, создание или перенос заявки возвращает `404 Not Found` с кодом `EQUIPMENT_NOT_FOUND`.
-
-## Переходы статусов заявок
-
-```text
-new
-├──> in_progress
-│      ├──> done
-│      └──> rejected
-└──> rejected
+  REQUEST_ASSIGNEE {
+    uuid request_id PK, FK
+    uuid technician_id PK, FK
+    enum role
+    decimal hours
+  }
 ```
 
-Разрешены только следующие переходы:
+### Relations and constraints
+
+- Site → Equipment: 1:N.
+- Equipment → EquipmentPassport: 1:1.
+- Equipment → MaintenanceRequest: 1:N.
+- MaintenanceRequest → RequestStatusHistory: 1:N.
+- MaintenanceRequest ↔ Technician: N:M через RequestAssignee.
+
+Схема следует 3NF: site, passport, technician и status history хранятся отдельно. N:M вынесена в `request_assignees`, где находятся атрибуты связи `role` и `hours`.
+
+Основные ограничения:
+
+- `equipment.serial_number` и `technicians.employee_number` — `UNIQUE`;
+- `equipment_passports.equipment_id` — `UNIQUE`;
+- primary key `request_assignees` состоит из `request_id` и `technician_id`;
+- `request_assignees.hours > 0`;
+- latitude и longitude ограничены допустимыми диапазонами;
+- обязательные поля имеют `NOT NULL`;
+- типы, статусы, priorities и roles представлены PostgreSQL ENUM.
+
+Правила удаления:
+
+| Связь                                     | `ON DELETE` |
+| ----------------------------------------- | ----------- |
+| Site → Equipment                          | `RESTRICT`  |
+| Equipment → EquipmentPassport             | `CASCADE`   |
+| Equipment → MaintenanceRequest            | `RESTRICT`  |
+| MaintenanceRequest → RequestAssignee      | `CASCADE`   |
+| Technician → RequestAssignee              | `RESTRICT`  |
+| MaintenanceRequest → RequestStatusHistory | `CASCADE`   |
+
+### Migrations and seeds
+
+Схема создаётся только migrations; `sequelize.sync()` не используется. Порядок:
+
+1. sites;
+2. equipment;
+3. equipment passports;
+4. maintenance requests;
+5. technicians;
+6. request assignees;
+7. request status history.
+
+Откат последней или всех migrations:
+
+```bash
+npm run db:migrate:undo
+npm run db:migrate:undo:all
+```
+
+Чистый цикл для development/demo database:
+
+```bash
+npm run db:migrate:undo:all
+npm run db:migrate
+npm run db:seed
+```
+
+Команда удаляет текущие данные development/demo database. `db:seed:undo:all` удаляет только seeded rows и может встретить FK conflict при наличии связанных runtime data.
+
+Seed baseline:
+
+| Entity               | Count |
+| -------------------- | ----: |
+| Sites                |     2 |
+| Equipment            |     6 |
+| Equipment passports  |     6 |
+| Technicians          |     5 |
+| Maintenance requests |    20 |
+| Request assignees    |    18 |
+| Status history rows  |    43 |
+
+Повторный `db:seed` поверх заполненной БД не рассчитан на идемпотентный запуск.
+
+## API
+
+Все endpoints используют prefix `/api`. List endpoints выполняют filtering, sorting and pagination в PostgreSQL через `WHERE`, `ORDER BY`, `LIMIT` и `OFFSET`.
+
+### Equipment
+
+| Method | Endpoint                  | Description                          |
+| ------ | ------------------------- | ------------------------------------ |
+| GET    | `/equipment`              | Список оборудования                  |
+| POST   | `/equipment`              | Создать equipment                    |
+| GET    | `/equipment/:id`          | Equipment и passport                 |
+| PATCH  | `/equipment/:id`          | Частично изменить equipment          |
+| DELETE | `/equipment/:id`          | Удалить equipment без requests       |
+| GET    | `/equipment/:id/requests` | Requests выбранного equipment        |
+| GET    | `/equipment/:id/weather`  | Прогноз и пригодность наружных работ |
+
+Equipment list поддерживает filters `status`, `type`, `installedFrom`, `installedTo`, сортировку, `page` и `limit`.
+
+### Maintenance Requests
+
+| Method | Endpoint               | Description                       |
+| ------ | ---------------------- | --------------------------------- |
+| GET    | `/requests`            | Список requests                   |
+| POST   | `/requests`            | Создать request со статусом `new` |
+| GET    | `/requests/:id`        | Request с assignees               |
+| PATCH  | `/requests/:id`        | Изменить поля request             |
+| PATCH  | `/requests/:id/status` | Изменить статус                   |
+| DELETE | `/requests/:id`        | Удалить request                   |
+
+Request list поддерживает filters `status`, `priority`, `equipmentId`, `createdFrom`, `createdTo`, сортировку, `page` и `limit`.
+
+### Week 3 endpoints
+
+| Method | Endpoint                          | Description                    |
+| ------ | --------------------------------- | ------------------------------ |
+| POST   | `/requests/:id/assignees`         | Полностью заменить команду     |
+| DELETE | `/requests/:id/assignees/:userId` | Удалить assignee               |
+| GET    | `/requests/:id/history`           | История статусов               |
+| GET    | `/sites/:id/summary`              | Сводка requests площадки       |
+| GET    | `/reports/equipment-load`         | Агрегированный отчёт equipment |
+
+### Business rules
+
+Допустимые переходы статусов:
 
 - `new` → `in_progress`;
 - `new` → `rejected`;
 - `in_progress` → `done`;
 - `in_progress` → `rejected`.
 
-Запрещены:
+`done` и `rejected` — terminal statuses. Переход `new → in_progress` требует хотя бы одного assignee; иначе возвращается `409 REQUEST_REQUIRES_ASSIGNEES`.
 
-- `new` → `done`;
-- любые переходы из `done`;
-- любые переходы из `rejected`;
-- повторная установка текущего статуса.
+Команда request содержит минимум одного специалиста и ровно одного `lead`. Technician не может повторяться, а `hours` должны быть больше нуля. Удалить lead при оставшихся members нельзя. Единственного lead можно удалить, оставив команду пустой.
 
-Любой недопустимый переход возвращает `409 Conflict` с кодом `INVALID_REQUEST_STATUS_TRANSITION`.
+Удаление equipment с открытыми requests блокируется как `409 EQUIPMENT_HAS_OPEN_REQUESTS`. FK `Equipment → MaintenanceRequest` использует `RESTRICT`, поэтому любые связанные requests блокируют физическое удаление. Такой DB conflict возвращается как `409 EQUIPMENT_HAS_REQUESTS`.
 
-Статус изменяется только через отдельный endpoint, а не через обычный PATCH заявки:
+Weather endpoint принимает `days` от 1 до 7. Пригодность наружных работ рассчитывается по лимитам осадков и скорости ветра из environment.
 
-```http
-PATCH /api/requests/:id/status
-```
-
-```json
-{
-  "status": "in_progress"
-}
-```
-
-## API endpoints
-
-### Health
-
-| Method | Endpoint      | Description                 | Success status |
-| ------ | ------------- | --------------------------- | -------------- |
-| GET    | `/api/health` | Проверить состояние сервиса | `200`          |
-
-### Equipment
-
-| Method | Endpoint                      | Description                             | Success status |
-| ------ | ----------------------------- | --------------------------------------- | -------------- |
-| GET    | `/api/equipment`              | Получить список оборудования            | `200`          |
-| POST   | `/api/equipment`              | Создать оборудование                    | `201`          |
-| GET    | `/api/equipment/:id`          | Получить оборудование по UUID           | `200`          |
-| PATCH  | `/api/equipment/:id`          | Частично изменить оборудование          | `200`          |
-| DELETE | `/api/equipment/:id`          | Удалить оборудование                    | `204`          |
-| GET    | `/api/equipment/:id/requests` | Получить заявки выбранного оборудования | `200`          |
-| GET    | `/api/equipment/:id/weather`  | Получить прогноз для оборудования       | `200`          |
-
-### Maintenance Requests
-
-| Method | Endpoint                   | Description                          | Success status |
-| ------ | -------------------------- | ------------------------------------ | -------------- |
-| GET    | `/api/requests`            | Получить список заявок               | `200`          |
-| POST   | `/api/requests`            | Создать заявку                       | `201`          |
-| GET    | `/api/requests/:id`        | Получить заявку по UUID              | `200`          |
-| PATCH  | `/api/requests/:id`        | Частично изменить поля заявки        | `200`          |
-| PATCH  | `/api/requests/:id/status` | Выполнить допустимый переход статуса | `200`          |
-| DELETE | `/api/requests/:id`        | Удалить заявку                       | `204`          |
-
-## Фильтрация, сортировка и пагинация
-
-### Equipment query parameters
-
-| Параметр        | Значения / формат                                       | Default |
-| --------------- | ------------------------------------------------------- | ------- |
-| `status`        | `operational`, `maintenance`, `fault`, `decommissioned` | —       |
-| `type`          | `turbine`, `inverter`, `sensor`, `substation`           | —       |
-| `installedFrom` | Дата `YYYY-MM-DD` включительно                          | —       |
-| `installedTo`   | Дата `YYYY-MM-DD` включительно                          | —       |
-| `sortBy`        | `name`, `type`, `serialNumber`, `status`, `installedAt` | `name`  |
-| `sortOrder`     | `asc`, `desc`                                           | `asc`   |
-| `page`          | Целое число от 1                                        | `1`     |
-| `limit`         | Целое число от 1 до 100                                 | `10`    |
-
-```http
-GET /api/equipment?type=turbine&status=operational&page=1&limit=10
-```
-
-### Request query parameters
-
-Параметры применяются к `/api/requests` и `/api/equipment/:id/requests`.
-
-| Параметр      | Значения / формат                                                    | Default     |
-| ------------- | -------------------------------------------------------------------- | ----------- |
-| `status`      | `new`, `in_progress`, `done`, `rejected`                             | —           |
-| `priority`    | `low`, `medium`, `high`, `critical`                                  | —           |
-| `equipmentId` | UUID оборудования                                                    | —           |
-| `createdFrom` | `YYYY-MM-DD` или ISO date-time                                       | —           |
-| `createdTo`   | `YYYY-MM-DD` или ISO date-time                                       | —           |
-| `sortBy`      | `title`, `priority`, `status`, `plannedAt`, `createdAt`, `updatedAt` | `createdAt` |
-| `sortOrder`   | `asc`, `desc`                                                        | `desc`      |
-| `page`        | Целое число от 1                                                     | `1`         |
-| `limit`       | Целое число от 1 до 100                                              | `10`        |
-
-```http
-GET /api/requests?priority=high&status=new&sortBy=createdAt&sortOrder=desc
-```
-
-Оба списка возвращают единый paginated response: элементы находятся в `data`, а общее количество и текущие параметры пагинации — в `meta`.
-
-```json
-{
-  "data": [],
-  "meta": {
-    "total": 0,
-    "page": 1,
-    "limit": 10
-  }
-}
-```
-
-## Создание оборудования
-
-```http
-POST /api/equipment
-Content-Type: application/json
-```
-
-```json
-{
-  "name": "Турбина №1",
-  "type": "turbine",
-  "serialNumber": "WT-2026-001",
-  "location": {
-    "lat": 55.75,
-    "lon": 37.61
-  },
-  "status": "operational",
-  "installedAt": "2024-05-20"
-}
-```
-
-Ответ `201 Created` содержит созданный объект и header `Location: /api/equipment/<id>`:
-
-```json
-{
-  "data": {
-    "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-    "name": "Турбина №1",
-    "type": "turbine",
-    "serialNumber": "WT-2026-001",
-    "location": {
-      "lat": 55.75,
-      "lon": 37.61
-    },
-    "status": "operational",
-    "installedAt": "2024-05-20"
-  }
-}
-```
-
-## Создание заявки
-
-`equipmentId` должен ссылаться на существующее оборудование.
-
-```http
-POST /api/requests
-Content-Type: application/json
-```
-
-```json
-{
-  "equipmentId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-  "title": "Плановое обслуживание турбины",
-  "description": "Проверить основные узлы",
-  "priority": "high",
-  "plannedAt": "2026-10-01T10:00:00.000Z"
-}
-```
-
-Ответ `201 Created` получает header `Location: /api/requests/<id>`. Сервер добавляет `id`, начальный статус и timestamps:
-
-```json
-{
-  "data": {
-    "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-    "equipmentId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-    "title": "Плановое обслуживание турбины",
-    "description": "Проверить основные узлы",
-    "priority": "high",
-    "plannedAt": "2026-10-01T10:00:00.000Z",
-    "status": "new",
-    "createdAt": "2026-09-15T10:00:00.000Z",
-    "updatedAt": "2026-09-15T10:00:00.000Z"
-  }
-}
-```
-
-## Правило удаления оборудования
-
-`DELETE /api/equipment/:id` запрещён, если у оборудования существует хотя бы одна открытая заявка со статусом `new` или `in_progress`.
-
-В этом случае API возвращает `409 Conflict` и код `EQUIPMENT_HAS_OPEN_REQUESTS`. Если все связанные заявки имеют статус `done` или `rejected`, оборудование можно удалить.
-
-## Погода и пригодность наружных работ
-
-```http
-GET /api/equipment/:id/weather?days=3
-```
-
-`days` — целое число от 1 до 7, значение по умолчанию — `3`. Координаты берутся из `equipment.location`, поэтому отдельный геокодинг не требуется. Endpoint переиспользует Open-Meteo client из Case 1 и добавляет к прогнозу максимальную скорость ветра.
-
-Сокращённый ответ:
-
-```json
-{
-  "data": {
-    "equipmentId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-    "location": {
-      "lat": 55.75,
-      "lon": 37.61
-    },
-    "rules": {
-      "maxPrecipitation": 0,
-      "maxWindSpeed": 36,
-      "precipitationUnit": "mm",
-      "windSpeedUnit": "km/h"
-    },
-    "outdoorWorkSuitable": true,
-    "forecast": [
-      {
-        "date": "2026-09-15",
-        "minTemperature": 8.4,
-        "maxTemperature": 16.1,
-        "precipitation": 0,
-        "maxWindSpeed": 18.2,
-        "suitableForOutdoorWork": true
-      }
-    ]
-  }
-}
-```
-
-Каждый день подходит для наружных работ, только если одновременно выполняются условия:
-
-```text
-precipitation <= OUTDOOR_MAX_PRECIPITATION
-AND
-maxWindSpeed <= OUTDOOR_MAX_WIND_SPEED
-```
-
-Поле `suitableForOutdoorWork` содержит результат для одного дня. `outdoorWorkSuitable` равно `true`, только если подходят **все** дни прогноза. Defaults: `0` мм осадков и `36` км/ч ветра.
-
-Ошибка внешнего погодного API преобразуется в контролируемый ответ и не останавливает REST server:
-
-- `502 WEATHER_API_ERROR` — Open-Meteo недоступен или вернул некорректный ответ;
-- `504 WEATHER_API_TIMEOUT` — превышен `REQUEST_TIMEOUT_MS`.
-
-## Формат ошибок
-
-Все контролируемые ошибки возвращаются в едином формате:
+Контролируемые ошибки имеют единый формат:
 
 ```json
 {
@@ -628,101 +330,160 @@ maxWindSpeed <= OUTDOOR_MAX_WIND_SPEED
     "code": "VALIDATION_ERROR",
     "message": "Переданы некорректные данные.",
     "details": [],
-    "requestId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+    "requestId": "uuid"
   }
 }
 ```
 
-| HTTP status | Пример причины                   | Реальные error codes                                                                            |
-| ----------- | -------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `400`       | Некорректный JSON                | `INVALID_JSON`                                                                                  |
-| `403`       | Origin запрещён CORS             | `CORS_ORIGIN_DENIED`                                                                            |
-| `404`       | Ресурс или маршрут не найден     | `EQUIPMENT_NOT_FOUND`, `REQUEST_NOT_FOUND`, `ROUTE_NOT_FOUND`                                   |
-| `409`       | Конфликт бизнес-правил           | `EQUIPMENT_SERIAL_CONFLICT`, `EQUIPMENT_HAS_OPEN_REQUESTS`, `INVALID_REQUEST_STATUS_TRANSITION` |
-| `413`       | JSON body больше 100kb           | `PAYLOAD_TOO_LARGE`                                                                             |
-| `422`       | Ошибка body, params или query    | `VALIDATION_ERROR`                                                                              |
-| `429`       | Превышен rate limit              | `RATE_LIMIT_EXCEEDED`                                                                           |
-| `500`       | Непредвиденная внутренняя ошибка | `INTERNAL_ERROR`                                                                                |
-| `502`       | Ошибка внешнего погодного API    | `WEATHER_API_ERROR`                                                                             |
-| `504`       | Timeout внешнего погодного API   | `WEATHER_API_TIMEOUT`                                                                           |
+Основные Week 3 codes: `SITE_NOT_FOUND`, `TECHNICIAN_NOT_FOUND`, `REQUEST_ASSIGNEE_NOT_FOUND`, `REQUEST_ASSIGNEE_CONFLICT`, `REQUEST_REQUIRES_ASSIGNEES`, `REQUEST_TEAM_REQUIRES_LEAD`, `EQUIPMENT_HAS_REQUESTS`, `INVALID_PAGINATION`.
 
-## Request ID и logging
+## Transactions
 
-Каждый HTTP response получает header `X-Request-Id`. Если клиент прислал непустой `X-Request-Id`, сервер переиспользует его; иначе генерирует UUID. Тот же идентификатор присутствует в error JSON и структурированных логах.
+Смена статуса выполняется в одной транзакции:
 
-Логирование выполняется через Pino. Для каждого завершённого HTTP request записываются:
+```text
+BEGIN
+SELECT request FOR UPDATE
+validate transition
+check assignees for in_progress
+UPDATE request
+INSERT status history
+COMMIT
+```
 
-- `requestId`;
-- `method`;
-- `path`;
-- `status`;
-- `durationMs`.
+Статус и history изменяются атомарно. `FOR UPDATE` блокирует конкурирующие изменения одной request row. При ошибке транзакция откатывается.
 
-Уровни логирования:
+`POST /requests/:id/assignees` полностью заменяет команду:
 
-- `info` — HTTP 2xx и 3xx;
-- `warn` — HTTP 4xx;
-- `error` — HTTP 5xx.
+```text
+BEGIN
+SELECT request FOR UPDATE
+validate technicians
+DELETE old assignments
+INSERT new assignments
+SELECT resulting team
+COMMIT
+```
 
-Тело запроса автоматически не логируется.
+Если technician не найден или вставка завершается ошибкой, выполняется rollback и прежняя команда сохраняется.
 
-## Security
+Status history доступна через `GET /requests/:id/history`. API не предоставляет операций изменения или удаления history rows.
 
-### CORS
+## Analytics
 
-Сервер использует явный allowlist из `CORS_ORIGINS`; wildcard `*` не применяется. Запросы без header `Origin` разрешены. Запрещённый Origin получает `403 CORS_ORIGIN_DENIED`.
+### Site summary
 
-### Rate limit
+`GET /sites/:id/summary` возвращает site metadata, общее число requests, counts по status и priority, а также `averageCloseHours`. Время закрытия берётся из первой history transition в `done` или `rejected`.
 
-Rate limit действует на `/api` и настраивается через `RATE_LIMIT_WINDOW_MS` и `RATE_LIMIT_MAX`. При превышении лимита API возвращает `429 RATE_LIMIT_EXCEEDED` и стандартные `RateLimit` headers.
+### Equipment load
 
-### Helmet
+`GET /reports/equipment-load` возвращает:
 
-Helmet добавляет защитные HTTP headers ко всем ответам.
+- `equipmentId`;
+- `equipmentName`;
+- `serialNumber`;
+- `requestCount`;
+- `closedRequestCount`;
+- `totalPlannedHours`;
+- `lastMaintenanceAt`.
 
-### Ограничение размера body
+Query parameters:
 
-JSON body ограничен значением `100kb`. Превышение возвращает `413 PAYLOAD_TOO_LARGE`.
+| Parameter     | Default | Bounds                 |
+| ------------- | ------- | ---------------------- |
+| `from`        | —       | date или ISO date-time |
+| `to`          | —       | date или ISO date-time |
+| `minRequests` | `0`     | integer ≥ 0            |
+| `limit`       | `50`    | 1–100                  |
+| `offset`      | `0`     | 0–10000                |
 
-## Postman Case 2
+Raw SQL использует CTE `filtered_requests`, `request_labor` и `request_done_times`, затем `GROUP BY`, aggregates и `HAVING`. `request_labor` агрегирует hours до JOIN с history, чтобы не дублировать трудозатраты.
 
-Файлы:
+`closedRequestCount` включает `done` и `rejected`. `lastMaintenanceAt` учитывает только первую transition в `done`. `minRequests` применяется через `HAVING COUNT(...)`.
+
+Параметры отчётов передаются в SQL через bind parameters. Пользовательские значения не конкатенируются со строкой запроса. Сортировка equipment-load статична; sort fields обычных списков проходят whitelist validation.
+
+## Compatibility notes
+
+Case 2 API принимает и возвращает `location: { lat, lon }`. В Week 3 координаты хранятся в Site. Equipment repository загружает location через association и при записи ищет site по координатам. Если site отсутствует, создаётся compatibility site.
+
+Поле `maintenance_requests.author` обязательно в БД. Старый POST body не содержит author, поэтому repository записывает внутреннее значение `api`.
+
+Связанные Site, passport и assignees загружаются через Sequelize `include`.
+
+Sequelize instance создаётся один раз. Перед запуском HTTP server выполняется `sequelize.authenticate()`. Если БД недоступна, HTTP server не запускается. При `SIGINT` или `SIGTERM` закрываются HTTP server и connection pool.
+
+## Environment
+
+Локальный `.env` не коммитится. `.env.example` содержит defaults и безопасный placeholder для `DB_PASSWORD`. `npm start` читает `.env` через встроенный `--env-file-if-exists` Node.js.
+
+### API and Weather
+
+| Variable                    | Default / example        | Description                      |
+| --------------------------- | ------------------------ | -------------------------------- |
+| `PORT`                      | `3000`                   | Express port                     |
+| `NODE_ENV`                  | `development`            | Runtime environment name         |
+| `GEOCODING_API_URL`         | Open-Meteo geocoding URL | Weather CLI geocoding            |
+| `FORECAST_API_URL`          | Open-Meteo forecast URL  | Weather forecast                 |
+| `REQUEST_TIMEOUT_MS`        | `5000`                   | Open-Meteo timeout, ms           |
+| `REPORTS_DIR`               | `reports`                | Weather reports/cache directory  |
+| `TEMPERATURE_UNIT`          | `celsius`                | `celsius` or `fahrenheit`        |
+| `PRECIPITATION_UNIT`        | `mm`                     | `mm` or `inch`                   |
+| `OUTDOOR_MAX_PRECIPITATION` | `0`                      | Outdoor work precipitation limit |
+| `OUTDOOR_MAX_WIND_SPEED`    | `36`                     | Outdoor work wind limit          |
+| `CORS_ORIGINS`              | local origins            | Comma-separated allowlist        |
+| `RATE_LIMIT_WINDOW_MS`      | `60000`                  | Rate-limit window, ms            |
+| `RATE_LIMIT_MAX`            | `100`                    | Requests per window              |
+| `LOG_LEVEL`                 | `info`                   | Pino log level                   |
+
+### Database
+
+| Variable             | Default / example | Description                         |
+| -------------------- | ----------------- | ----------------------------------- |
+| `DB_HOST`            | `localhost`       | PostgreSQL host                     |
+| `DB_PORT`            | `5432`            | PostgreSQL port                     |
+| `DB_NAME`            | `caselab`         | Database name                       |
+| `DB_USER`            | `caselab`         | Database user                       |
+| `DB_PASSWORD`        | `change_me`       | Required local password placeholder |
+| `DB_POOL_MAX`        | `10`              | Maximum pool size                   |
+| `DB_POOL_MIN`        | `0`               | Minimum pool size                   |
+| `DB_POOL_ACQUIRE_MS` | `30000`           | Pool acquire timeout, ms            |
+| `DB_POOL_IDLE_MS`    | `10000`           | Idle connection timeout, ms         |
+
+## Postman
+
+Collection:
 
 ```text
 docs/postman/CaseLab Maintenance API.postman_collection.json
+```
+
+Environment:
+
+```text
 docs/postman/CaseLab Maintenance API.postman_environment.json
 ```
 
-Порядок запуска:
+Collection содержит Week 2 и Week 3 scenarios, negative cases, analytics и cleanup.
 
-1. Импортировать collection.
-2. Импортировать environment.
-3. Запустить `npm start`.
-4. Выбрать environment `CaseLab Maintenance API`.
-5. Выполнять папки collection сверху вниз.
+Последний проверенный Newman run: **69 requests / 220 assertions / 0 failures**.
 
-Collection автоматически сохраняет runtime IDs оборудования и заявок в environment. Она содержит success flow, negative scenarios, security-проверки и cleanup.
+Rate-limit scenario запускается отдельно с `RATE_LIMIT_MAX=2`: ожидаются ответы `200`, `200`, `429`.
 
-Для отдельного rate limit scenario сначала остановите обычный сервер и запустите:
+## Useful commands
 
-```bash
-RATE_LIMIT_MAX=2 npm start
-```
-
-Затем выполните три запроса специальной подпапки по порядку: первые два должны вернуть `200`, третий — `429`. Обычный default `RATE_LIMIT_MAX=100` ради теста не изменяется.
-
-## In-memory storage
-
-Данные Week 2 не записываются в файлы или базу данных. После каждого перезапуска процесса списки оборудования и заявок очищаются — это ожидаемое поведение текущей реализации.
-
-Repository abstraction отделяет хранение от services и позволит заменить in-memory repositories на другой источник данных без переноса business rules в controllers.
-
-## NPM scripts
-
-| Команда                              | Назначение                                        |
-| ------------------------------------ | ------------------------------------------------- |
-| `npm start`                          | Запускает Express API через `node src/server.js`. |
-| `npm run weather -- <CLI-аргументы>` | Запускает Weather CLI через `node src/index.js`.  |
-| `npm run lint`                       | Проверяет проект с помощью ESLint.                |
-| `npm run format`                     | Форматирует проект с помощью Prettier.            |
-| `npm run format:check`               | Проверяет форматирование без изменения файлов.    |
+| Command                                     | Description                  |
+| ------------------------------------------- | ---------------------------- |
+| `npm start`                                 | Start Express API            |
+| `npm run weather -- --city Москва --days 3` | Run Weather CLI              |
+| `npm run db:up`                             | Start PostgreSQL             |
+| `npm run db:down`                           | Stop Compose services        |
+| `npm run db:logs`                           | Show PostgreSQL logs         |
+| `npm run db:migrate`                        | Apply migrations             |
+| `npm run db:migrate:undo`                   | Roll back the last migration |
+| `npm run db:migrate:undo:all`               | Roll back all migrations     |
+| `npm run db:seed`                           | Apply seeders                |
+| `npm run db:seed:undo:all`                  | Undo seeders                 |
+| `npm run lint`                              | Run ESLint                   |
+| `npm run format`                            | Format files with Prettier   |
+| `npm run format:check`                      | Check formatting             |
