@@ -21,6 +21,14 @@ const DEFAULT_DB_POOL_MAX = 10;
 const DEFAULT_DB_POOL_MIN = 0;
 const DEFAULT_DB_POOL_ACQUIRE_MS = 30000;
 const DEFAULT_DB_POOL_IDLE_MS = 10000;
+const DEFAULT_JWT_ACCESS_SECRET = 'development-only-jwt-secret-change-me';
+const DEFAULT_JWT_ACCESS_TTL_SECONDS = 900;
+const DEFAULT_REFRESH_TOKEN_TTL_SECONDS = 604800;
+const INSECURE_JWT_ACCESS_SECRETS = new Set([
+  'change_me',
+  'development-only-jwt-secret-change-me',
+  'replace_with_a_random_secret_at_least_32_characters',
+]);
 
 function getEnvValue(name, defaultValue) {
   const value = process.env[name];
@@ -60,6 +68,24 @@ function getListEnvValue(name, defaultValue) {
   return values?.length ? values : defaultValue;
 }
 
+function getJwtAccessSecret(nodeEnv) {
+  const value = process.env.JWT_ACCESS_SECRET?.trim();
+  const secret = value || DEFAULT_JWT_ACCESS_SECRET;
+
+  if (
+    nodeEnv === 'production' &&
+    (!value ||
+      value.length < 32 ||
+      INSECURE_JWT_ACCESS_SECRETS.has(value.toLowerCase()))
+  ) {
+    throw new Error(
+      'JWT_ACCESS_SECRET must be a secure value of at least 32 characters in production.'
+    );
+  }
+
+  return secret;
+}
+
 const requestTimeoutFromEnv = Number(process.env.REQUEST_TIMEOUT_MS);
 const portFromEnv = Number(process.env.PORT);
 
@@ -67,6 +93,20 @@ export const PORT =
   Number.isInteger(portFromEnv) && portFromEnv > 0 ? portFromEnv : DEFAULT_PORT;
 
 export const NODE_ENV = getEnvValue('NODE_ENV', DEFAULT_NODE_ENV);
+
+export const JWT_ACCESS_SECRET = getJwtAccessSecret(NODE_ENV);
+
+export const JWT_ACCESS_TTL_SECONDS = getIntegerEnvValue(
+  'JWT_ACCESS_TTL_SECONDS',
+  DEFAULT_JWT_ACCESS_TTL_SECONDS,
+  (value) => value > 0
+);
+
+export const REFRESH_TOKEN_TTL_SECONDS = getIntegerEnvValue(
+  'REFRESH_TOKEN_TTL_SECONDS',
+  DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
+  (value) => value > 0
+);
 
 export const GEOCODING_API_URL = getEnvValue(
   'GEOCODING_API_URL',
