@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { jwtVerify, SignJWT } from 'jose';
 import { JWT_ACCESS_SECRET, JWT_ACCESS_TTL_SECONDS } from '../config.js';
 
@@ -16,6 +16,7 @@ export async function createAccessToken(user) {
   return new SignJWT({ role: user.role })
     .setProtectedHeader({ alg: JWT_ALGORITHM })
     .setSubject(user.id)
+    .setJti(randomUUID())
     .setIssuedAt()
     .setExpirationTime(`${JWT_ACCESS_TTL_SECONDS}s`)
     .sign(jwtSecret);

@@ -24,6 +24,11 @@ const DEFAULT_DB_POOL_IDLE_MS = 10000;
 const DEFAULT_JWT_ACCESS_SECRET = 'development-only-jwt-secret-change-me';
 const DEFAULT_JWT_ACCESS_TTL_SECONDS = 900;
 const DEFAULT_REFRESH_TOKEN_TTL_SECONDS = 604800;
+const DEFAULT_AUTH_COOKIE_SECURE = false;
+const DEFAULT_AUTH_COOKIE_SAME_SITE = 'lax';
+const DEFAULT_AUTH_COOKIE_NAME = 'refresh_token';
+const DEFAULT_AUTH_LOGIN_RATE_LIMIT_WINDOW_MS = 60000;
+const DEFAULT_AUTH_LOGIN_RATE_LIMIT_MAX = 5;
 const INSECURE_JWT_ACCESS_SECRETS = new Set([
   'change_me',
   'development-only-jwt-secret-change-me',
@@ -68,6 +73,14 @@ function getListEnvValue(name, defaultValue) {
   return values?.length ? values : defaultValue;
 }
 
+function getBooleanEnvValue(name, defaultValue) {
+  const value = process.env[name]?.trim().toLowerCase();
+
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return defaultValue;
+}
+
 function getJwtAccessSecret(nodeEnv) {
   const value = process.env.JWT_ACCESS_SECRET?.trim();
   const secret = value || DEFAULT_JWT_ACCESS_SECRET;
@@ -107,6 +120,42 @@ export const REFRESH_TOKEN_TTL_SECONDS = getIntegerEnvValue(
   DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
   (value) => value > 0
 );
+
+export const AUTH_COOKIE_SECURE = getBooleanEnvValue(
+  'AUTH_COOKIE_SECURE',
+  DEFAULT_AUTH_COOKIE_SECURE
+);
+
+export const AUTH_COOKIE_SAME_SITE = getAllowedEnvValue(
+  'AUTH_COOKIE_SAME_SITE',
+  ['lax', 'strict', 'none'],
+  DEFAULT_AUTH_COOKIE_SAME_SITE
+);
+
+export const AUTH_COOKIE_NAME =
+  process.env.AUTH_COOKIE_NAME?.trim() || DEFAULT_AUTH_COOKIE_NAME;
+
+export const AUTH_LOGIN_RATE_LIMIT_WINDOW_MS = getIntegerEnvValue(
+  'AUTH_LOGIN_RATE_LIMIT_WINDOW_MS',
+  DEFAULT_AUTH_LOGIN_RATE_LIMIT_WINDOW_MS,
+  (value) => value > 0
+);
+
+export const AUTH_LOGIN_RATE_LIMIT_MAX = getIntegerEnvValue(
+  'AUTH_LOGIN_RATE_LIMIT_MAX',
+  DEFAULT_AUTH_LOGIN_RATE_LIMIT_MAX,
+  (value) => value > 0
+);
+
+if (NODE_ENV === 'production' && !AUTH_COOKIE_SECURE) {
+  throw new Error('AUTH_COOKIE_SECURE must be true in production.');
+}
+
+if (AUTH_COOKIE_SAME_SITE === 'none' && !AUTH_COOKIE_SECURE) {
+  throw new Error(
+    'AUTH_COOKIE_SECURE must be true when AUTH_COOKIE_SAME_SITE is none.'
+  );
+}
 
 export const GEOCODING_API_URL = getEnvValue(
   'GEOCODING_API_URL',
