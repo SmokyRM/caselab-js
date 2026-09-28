@@ -1,4 +1,5 @@
 import { sequelize } from '../sequelize.js';
+import { AuthSession } from './AuthSession.js';
 import { Equipment } from './Equipment.js';
 import { EquipmentPassport } from './EquipmentPassport.js';
 import { MaintenanceRequest } from './MaintenanceRequest.js';
@@ -6,6 +7,7 @@ import { RequestAssignee } from './RequestAssignee.js';
 import { RequestStatusHistory } from './RequestStatusHistory.js';
 import { Site } from './Site.js';
 import { Technician } from './Technician.js';
+import { User } from './User.js';
 
 Site.hasMany(Equipment, {
   foreignKey: 'site_id',
@@ -81,7 +83,28 @@ RequestAssignee.belongsTo(Technician, {
   as: 'technician',
 });
 
+User.belongsTo(Technician, {
+  foreignKey: 'technician_id',
+  as: 'technician',
+});
+
+Technician.hasOne(User, {
+  foreignKey: 'technician_id',
+  as: 'user',
+});
+
+User.hasMany(AuthSession, {
+  foreignKey: 'user_id',
+  as: 'sessions',
+});
+
+AuthSession.belongsTo(User, {
+  foreignKey: 'user_id',
+  as: 'user',
+});
+
 export {
+  AuthSession,
   Equipment,
   EquipmentPassport,
   MaintenanceRequest,
@@ -89,5 +112,6 @@ export {
   RequestStatusHistory,
   Site,
   Technician,
+  User,
   sequelize,
 };
