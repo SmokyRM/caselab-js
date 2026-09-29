@@ -2,6 +2,8 @@ import { Router } from 'express';
 import * as equipmentController from '../controllers/equipment.controller.js';
 import { getWeather } from '../controllers/equipmentWeather.controller.js';
 import { listEquipmentRequests } from '../controllers/request.controller.js';
+import { authenticate } from '../middlewares/authenticate.js';
+import { authorizeRoles } from '../middlewares/authorizeRoles.js';
 import { validate } from '../middlewares/validate.js';
 import {
   createEquipmentSchema,
@@ -14,6 +16,8 @@ import { equipmentWeatherQuerySchema } from '../validators/weather.validator.js'
 
 const equipmentRouter = Router();
 
+equipmentRouter.use(authenticate);
+
 equipmentRouter.get(
   '/',
   validate({ query: equipmentListQuerySchema }),
@@ -22,6 +26,7 @@ equipmentRouter.get(
 
 equipmentRouter.post(
   '/',
+  authorizeRoles('admin'),
   validate({ body: createEquipmentSchema }),
   equipmentController.createEquipment
 );
@@ -46,12 +51,14 @@ equipmentRouter.get(
 
 equipmentRouter.patch(
   '/:id',
+  authorizeRoles('admin'),
   validate({ params: equipmentIdSchema, body: updateEquipmentSchema }),
   equipmentController.updateEquipment
 );
 
 equipmentRouter.delete(
   '/:id',
+  authorizeRoles('admin'),
   validate({ params: equipmentIdSchema }),
   equipmentController.deleteEquipment
 );
