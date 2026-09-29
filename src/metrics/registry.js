@@ -4,7 +4,7 @@ import {
   Gauge,
   Histogram,
   Registry,
-} from '@prometheus-io/client';
+} from 'prom-client';
 
 export const registry = new Registry();
 
