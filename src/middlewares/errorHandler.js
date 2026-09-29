@@ -1,5 +1,7 @@
 import { AppError } from '../errors/AppError.js';
-import { logger } from '../logger.js';
+import { getSafeErrorDetails, logger } from '../logger.js';
+import { httpErrorsTotal } from '../metrics/registry.js';
+import { normalizeRoute } from './metricsMiddleware.js';
 
 function sendError(
   response,
@@ -19,10 +21,30 @@ function sendError(
   });
 }
 
+function recordError(request, code) {
+  httpErrorsTotal.inc({
+    route: normalizeRoute(request),
+    error_code: code,
+  });
+}
+
+function logServerError(error, request, code) {
+  logger.error(
+    {
+      requestId: request.id,
+      event: 'request_error',
+      ...getSafeErrorDetails(error),
+      errorCode: code,
+    },
+    'Request failed'
+  );
+}
+
 export function errorHandler(error, request, response, next) {
   void next;
 
   if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+    recordError(request, 'INVALID_JSON');
     sendError(
       response,
       request.id,
@@ -34,6 +56,7 @@ export function errorHandler(error, request, response, next) {
   }
 
   if (error.status === 413 || error.type === 'entity.too.large') {
+    recordError(request, 'PAYLOAD_TOO_LARGE');
     sendError(
       response,
       request.id,
@@ -45,6 +68,12 @@ export function errorHandler(error, request, response, next) {
   }
 
   if (error instanceof AppError) {
+    recordError(request, error.code);
+
+    if ([500, 502, 504].includes(error.statusCode)) {
+      logServerError(error, request, error.code);
+    }
+
     sendError(
       response,
       request.id,
@@ -56,10 +85,8 @@ export function errorHandler(error, request, response, next) {
     return;
   }
 
-  logger.error(
-    { err: error, requestId: request.id },
-    'Unexpected request error'
-  );
+  recordError(request, 'INTERNAL_ERROR');
+  logServerError(error, request, 'INTERNAL_ERROR');
 
   sendError(
     response,
