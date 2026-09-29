@@ -1,7 +1,6 @@
 import { AuthenticationError } from '../errors/AuthenticationError.js';
 import { verifyAccessToken } from '../security/tokens.js';
-
-const userRoles = new Set(['viewer', 'technician', 'admin']);
+import { getCurrentUser } from '../services/auth.service.js';
 
 function createAuthenticationRequiredError() {
   return new AuthenticationError(
@@ -35,17 +34,17 @@ export async function authenticate(request, response, next) {
   try {
     const payload = await verifyAccessToken(match[1]);
 
-    if (
-      typeof payload.sub !== 'string' ||
-      typeof payload.role !== 'string' ||
-      !userRoles.has(payload.role)
-    ) {
+    if (typeof payload.sub !== 'string') {
       throw createInvalidAccessTokenError();
     }
 
+    const user = await getCurrentUser(payload.sub);
+
     request.user = {
-      id: payload.sub,
-      role: payload.role,
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      technicianId: user.technicianId,
     };
     next();
   } catch {
