@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { UniqueConstraintError } from 'sequelize';
 import { sequelize } from '../db/models/index.js';
 import { AppError } from '../errors/AppError.js';
+import { AuthorizationError } from '../errors/AuthorizationError.js';
 import { ConflictError } from '../errors/ConflictError.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
 import * as equipmentRepository from '../repositories/equipment.repository.js';
@@ -104,11 +105,23 @@ export async function updateRequest(id, data) {
   });
 }
 
-export async function changeRequestStatus(id, status) {
+export async function changeRequestStatus(id, status, actor) {
   return sequelize.transaction(async (transaction) => {
     const request = await requestRepository.findByIdForUpdate(id, transaction);
 
     if (!request) throw createRequestNotFoundError();
+
+    if (actor.role === 'technician') {
+      const assigned =
+        actor.technicianId &&
+        (await requestRepository.isTechnicianAssigned(id, actor.technicianId, {
+          transaction,
+        }));
+
+      if (!assigned) throw new AuthorizationError();
+    } else if (actor.role !== 'admin') {
+      throw new AuthorizationError();
+    }
 
     const allowedStatuses = allowedStatusTransitions[request.status];
 
