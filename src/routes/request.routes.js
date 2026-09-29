@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import * as requestController from '../controllers/request.controller.js';
+import { authenticate } from '../middlewares/authenticate.js';
+import { authorizeRoles } from '../middlewares/authorizeRoles.js';
 import { validate } from '../middlewares/validate.js';
 import {
   createRequestSchema,
@@ -13,6 +15,8 @@ import {
 
 const requestRouter = Router();
 
+requestRouter.use(authenticate);
+
 requestRouter.get(
   '/',
   validate({ query: requestListQuerySchema }),
@@ -21,6 +25,7 @@ requestRouter.get(
 
 requestRouter.post(
   '/',
+  authorizeRoles('technician', 'admin'),
   validate({ body: createRequestSchema }),
   requestController.createRequest
 );
@@ -33,12 +38,14 @@ requestRouter.get(
 
 requestRouter.post(
   '/:id/assignees',
+  authorizeRoles('admin'),
   validate({ params: requestIdSchema, body: requestAssigneesSchema }),
   requestController.replaceRequestAssignees
 );
 
 requestRouter.delete(
   '/:id/assignees/:userId',
+  authorizeRoles('admin'),
   validate({ params: requestAssigneeIdSchema }),
   requestController.removeRequestAssignee
 );
@@ -51,18 +58,21 @@ requestRouter.get(
 
 requestRouter.patch(
   '/:id/status',
+  authorizeRoles('technician', 'admin'),
   validate({ params: requestIdSchema, body: requestStatusSchema }),
   requestController.changeRequestStatus
 );
 
 requestRouter.patch(
   '/:id',
+  authorizeRoles('technician', 'admin'),
   validate({ params: requestIdSchema, body: updateRequestSchema }),
   requestController.updateRequest
 );
 
 requestRouter.delete(
   '/:id',
+  authorizeRoles('admin'),
   validate({ params: requestIdSchema }),
   requestController.deleteRequest
 );
