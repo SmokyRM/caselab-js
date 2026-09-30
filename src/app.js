@@ -1,6 +1,7 @@
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import helmet from 'helmet';
+import { TRUST_PROXY } from './config.js';
 import { corsMiddleware } from './middlewares/corsMiddleware.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { metricsMiddleware } from './middlewares/metricsMiddleware.js';
@@ -17,6 +18,7 @@ import requestRouter from './routes/request.routes.js';
 
 const app = express();
 
+app.set('trust proxy', TRUST_PROXY);
 app.use(requestId);
 app.use(requestLogger);
 app.use(metricsMiddleware);

@@ -29,6 +29,7 @@ const DEFAULT_AUTH_COOKIE_SAME_SITE = 'lax';
 const DEFAULT_AUTH_COOKIE_NAME = 'refresh_token';
 const DEFAULT_AUTH_LOGIN_RATE_LIMIT_WINDOW_MS = 60000;
 const DEFAULT_AUTH_LOGIN_RATE_LIMIT_MAX = 5;
+const DEFAULT_TRUST_PROXY = 0;
 const INSECURE_JWT_ACCESS_SECRETS = new Set([
   'change_me',
   'development-only-jwt-secret-change-me',
@@ -145,6 +146,12 @@ export const AUTH_LOGIN_RATE_LIMIT_MAX = getIntegerEnvValue(
   'AUTH_LOGIN_RATE_LIMIT_MAX',
   DEFAULT_AUTH_LOGIN_RATE_LIMIT_MAX,
   (value) => value > 0
+);
+
+export const TRUST_PROXY = getIntegerEnvValue(
+  'TRUST_PROXY',
+  DEFAULT_TRUST_PROXY,
+  (value) => value >= 0
 );
 
 if (NODE_ENV === 'production' && !AUTH_COOKIE_SECURE) {
