@@ -96,6 +96,53 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          '/bin/promtool',
+          'query',
+          'instant',
+          'http://127.0.0.1:9090',
+          'up',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set}
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:8080/grafana/}
+      GF_SERVER_SERVE_FROM_SUB_PATH: 'true'
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning/datasources/prometheus.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
+      - ./monitoring/grafana/provisioning/dashboards/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    restart: unless-stopped
+
   nginx:
     image: nginx:1.27-alpine
     ports:
@@ -105,7 +152,11 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      grafana:
+        condition: service_started
     restart: unless-stopped
 
 volumes:
   postgres_data_prod:
+  prometheus_data:
+  grafana_data:
