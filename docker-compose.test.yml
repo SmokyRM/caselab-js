@@ -1,0 +1,16 @@
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${TEST_DB_NAME:-caselab_test}
+      POSTGRES_USER: ${TEST_DB_USER:-caselab_test}
+      POSTGRES_PASSWORD: ${TEST_DB_PASSWORD:-caselab_test_password}
+    ports:
+      - '${TEST_DB_PORT:-5433}:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 2s
+      timeout: 3s
+      retries: 15
