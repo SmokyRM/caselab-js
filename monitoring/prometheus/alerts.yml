@@ -1,0 +1,11 @@
+groups:
+  - name: caselab-availability
+    rules:
+      - alert: ServiceNotReady
+        expr: service_ready == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: CaseLab API is not ready
+          description: Database readiness check has been failing.
