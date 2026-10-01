@@ -63,4 +63,12 @@ const databaseConfig = {
 module.exports = {
   development: databaseConfig,
   production: databaseConfig,
+  test: {
+    ...databaseConfig,
+    host: getEnvValue('TEST_DB_HOST', '127.0.0.1'),
+    port: getIntegerEnvValue('TEST_DB_PORT', 5433, (value) => value > 0),
+    database: getEnvValue('TEST_DB_NAME', 'caselab_test'),
+    username: getEnvValue('TEST_DB_USER', 'caselab_test'),
+    password: getRequiredEnvValue('TEST_DB_PASSWORD'),
+  },
 };
