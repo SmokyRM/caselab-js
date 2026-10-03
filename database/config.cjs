@@ -40,24 +40,35 @@ const poolMin = getIntegerEnvValue(
   (value) => value >= 0 && value <= poolMax
 );
 
+const databaseConfig = {
+  dialect: 'postgres',
+  host: getEnvValue('DB_HOST', 'localhost'),
+  port: getIntegerEnvValue('DB_PORT', 5432, (value) => value > 0),
+  database: getEnvValue('DB_NAME', 'caselab'),
+  username: getEnvValue('DB_USER', 'caselab'),
+  password: getRequiredEnvValue('DB_PASSWORD'),
+  pool: {
+    max: poolMax,
+    min: poolMin,
+    acquire: getIntegerEnvValue(
+      'DB_POOL_ACQUIRE_MS',
+      30000,
+      (value) => value > 0
+    ),
+    idle: getIntegerEnvValue('DB_POOL_IDLE_MS', 10000, (value) => value > 0),
+  },
+  logging: false,
+};
+
 module.exports = {
-  development: {
-    dialect: 'postgres',
-    host: getEnvValue('DB_HOST', 'localhost'),
-    port: getIntegerEnvValue('DB_PORT', 5432, (value) => value > 0),
-    database: getEnvValue('DB_NAME', 'caselab'),
-    username: getEnvValue('DB_USER', 'caselab'),
-    password: getRequiredEnvValue('DB_PASSWORD'),
-    pool: {
-      max: poolMax,
-      min: poolMin,
-      acquire: getIntegerEnvValue(
-        'DB_POOL_ACQUIRE_MS',
-        30000,
-        (value) => value > 0
-      ),
-      idle: getIntegerEnvValue('DB_POOL_IDLE_MS', 10000, (value) => value > 0),
-    },
-    logging: false,
+  development: databaseConfig,
+  production: databaseConfig,
+  test: {
+    ...databaseConfig,
+    host: getEnvValue('TEST_DB_HOST', '127.0.0.1'),
+    port: getIntegerEnvValue('TEST_DB_PORT', 5433, (value) => value > 0),
+    database: getEnvValue('TEST_DB_NAME', 'caselab_test'),
+    username: getEnvValue('TEST_DB_USER', 'caselab_test'),
+    password: getEnvValue('TEST_DB_PASSWORD', 'caselab_test_password'),
   },
 };

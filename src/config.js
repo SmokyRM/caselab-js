@@ -21,6 +21,20 @@ const DEFAULT_DB_POOL_MAX = 10;
 const DEFAULT_DB_POOL_MIN = 0;
 const DEFAULT_DB_POOL_ACQUIRE_MS = 30000;
 const DEFAULT_DB_POOL_IDLE_MS = 10000;
+const DEFAULT_JWT_ACCESS_SECRET = 'development-only-jwt-secret-change-me';
+const DEFAULT_JWT_ACCESS_TTL_SECONDS = 900;
+const DEFAULT_REFRESH_TOKEN_TTL_SECONDS = 604800;
+const DEFAULT_AUTH_COOKIE_SECURE = false;
+const DEFAULT_AUTH_COOKIE_SAME_SITE = 'lax';
+const DEFAULT_AUTH_COOKIE_NAME = 'refresh_token';
+const DEFAULT_AUTH_LOGIN_RATE_LIMIT_WINDOW_MS = 60000;
+const DEFAULT_AUTH_LOGIN_RATE_LIMIT_MAX = 5;
+const DEFAULT_TRUST_PROXY = 0;
+const INSECURE_JWT_ACCESS_SECRETS = new Set([
+  'change_me',
+  'development-only-jwt-secret-change-me',
+  'replace_with_a_random_secret_at_least_32_characters',
+]);
 
 function getEnvValue(name, defaultValue) {
   const value = process.env[name];
@@ -60,6 +74,32 @@ function getListEnvValue(name, defaultValue) {
   return values?.length ? values : defaultValue;
 }
 
+function getBooleanEnvValue(name, defaultValue) {
+  const value = process.env[name]?.trim().toLowerCase();
+
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return defaultValue;
+}
+
+function getJwtAccessSecret(nodeEnv) {
+  const value = process.env.JWT_ACCESS_SECRET?.trim();
+  const secret = value || DEFAULT_JWT_ACCESS_SECRET;
+
+  if (
+    nodeEnv === 'production' &&
+    (!value ||
+      value.length < 32 ||
+      INSECURE_JWT_ACCESS_SECRETS.has(value.toLowerCase()))
+  ) {
+    throw new Error(
+      'JWT_ACCESS_SECRET must be a secure value of at least 32 characters in production.'
+    );
+  }
+
+  return secret;
+}
+
 const requestTimeoutFromEnv = Number(process.env.REQUEST_TIMEOUT_MS);
 const portFromEnv = Number(process.env.PORT);
 
@@ -67,6 +107,62 @@ export const PORT =
   Number.isInteger(portFromEnv) && portFromEnv > 0 ? portFromEnv : DEFAULT_PORT;
 
 export const NODE_ENV = getEnvValue('NODE_ENV', DEFAULT_NODE_ENV);
+
+export const JWT_ACCESS_SECRET = getJwtAccessSecret(NODE_ENV);
+
+export const JWT_ACCESS_TTL_SECONDS = getIntegerEnvValue(
+  'JWT_ACCESS_TTL_SECONDS',
+  DEFAULT_JWT_ACCESS_TTL_SECONDS,
+  (value) => value > 0
+);
+
+export const REFRESH_TOKEN_TTL_SECONDS = getIntegerEnvValue(
+  'REFRESH_TOKEN_TTL_SECONDS',
+  DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
+  (value) => value > 0
+);
+
+export const AUTH_COOKIE_SECURE = getBooleanEnvValue(
+  'AUTH_COOKIE_SECURE',
+  DEFAULT_AUTH_COOKIE_SECURE
+);
+
+export const AUTH_COOKIE_SAME_SITE = getAllowedEnvValue(
+  'AUTH_COOKIE_SAME_SITE',
+  ['lax', 'strict', 'none'],
+  DEFAULT_AUTH_COOKIE_SAME_SITE
+);
+
+export const AUTH_COOKIE_NAME =
+  process.env.AUTH_COOKIE_NAME?.trim() || DEFAULT_AUTH_COOKIE_NAME;
+
+export const AUTH_LOGIN_RATE_LIMIT_WINDOW_MS = getIntegerEnvValue(
+  'AUTH_LOGIN_RATE_LIMIT_WINDOW_MS',
+  DEFAULT_AUTH_LOGIN_RATE_LIMIT_WINDOW_MS,
+  (value) => value > 0
+);
+
+export const AUTH_LOGIN_RATE_LIMIT_MAX = getIntegerEnvValue(
+  'AUTH_LOGIN_RATE_LIMIT_MAX',
+  DEFAULT_AUTH_LOGIN_RATE_LIMIT_MAX,
+  (value) => value > 0
+);
+
+export const TRUST_PROXY = getIntegerEnvValue(
+  'TRUST_PROXY',
+  DEFAULT_TRUST_PROXY,
+  (value) => value >= 0
+);
+
+if (NODE_ENV === 'production' && !AUTH_COOKIE_SECURE) {
+  throw new Error('AUTH_COOKIE_SECURE must be true in production.');
+}
+
+if (AUTH_COOKIE_SAME_SITE === 'none' && !AUTH_COOKIE_SECURE) {
+  throw new Error(
+    'AUTH_COOKIE_SECURE must be true when AUTH_COOKIE_SAME_SITE is none.'
+  );
+}
 
 export const GEOCODING_API_URL = getEnvValue(
   'GEOCODING_API_URL',

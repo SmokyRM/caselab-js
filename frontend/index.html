@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="CaseLab Maintenance Service operations dashboard"
+    />
+    <title>CaseLab Maintenance</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main id="login-view" class="login-page">
+      <section class="login-card" aria-labelledby="login-title">
+        <div class="brand-mark" aria-hidden="true">CL</div>
+        <p class="eyebrow">Демо Week 4</p>
+        <h1 id="login-title">CaseLab: обслуживание</h1>
+        <p class="muted">Войдите для работы с оборудованием и заявками.</p>
+
+        <form id="login-form" class="stack-form">
+          <label for="login-email">Email</label>
+          <input
+            id="login-email"
+            name="email"
+            type="email"
+            autocomplete="username"
+            required
+          />
+
+          <label for="login-password">Пароль</label>
+          <input
+            id="login-password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            minlength="8"
+            required
+          />
+
+          <button class="primary-button" type="submit">Войти</button>
+        </form>
+
+        <p class="login-hint">Используйте демо-данные из README или Postman.</p>
+        <div
+          id="login-error"
+          class="alert alert-error hidden"
+          role="alert"
+        ></div>
+      </section>
+    </main>
+
+    <div id="application-view" class="application hidden">
+      <header class="topbar">
+        <div class="topbar-brand">
+          <span class="brand-mark brand-mark-small" aria-hidden="true">CL</span>
+          <div>
+            <p class="eyebrow">Панель обслуживания</p>
+            <strong>CaseLab: обслуживание</strong>
+          </div>
+        </div>
+
+        <div class="user-panel">
+          <div>
+            <span id="current-user-email" class="user-email"></span>
+            <span id="current-user-role" class="role-badge"></span>
+          </div>
+          <button id="logout-button" class="secondary-button" type="button">
+            Выйти
+          </button>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <nav class="sidebar" aria-label="Основная навигация">
+          <button class="nav-button active" type="button" data-view="equipment">
+            Оборудование
+          </button>
+          <button class="nav-button" type="button" data-view="requests">
+            Заявки
+          </button>
+        </nav>
+
+        <main class="content-area">
+          <div id="page-alert" class="alert hidden" role="alert"></div>
+          <div id="content"></div>
+        </main>
+      </div>
+    </div>
+
+    <dialog id="form-dialog" class="form-dialog">
+      <div class="dialog-header">
+        <h2 id="dialog-title"></h2>
+        <button
+          id="dialog-close"
+          class="icon-button"
+          type="button"
+          aria-label="Закрыть диалог"
+        >
+          ×
+        </button>
+      </div>
+      <div id="dialog-body"></div>
+    </dialog>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,163 @@
+x-app-environment: &app-environment
+  NODE_ENV: ${NODE_ENV:-production}
+  PORT: 3000
+  DB_HOST: postgres
+  DB_PORT: 5432
+  DB_NAME: ${DB_NAME:-caselab}
+  DB_USER: ${DB_USER:-caselab}
+  DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+  DB_POOL_MAX: ${DB_POOL_MAX:-10}
+  DB_POOL_MIN: ${DB_POOL_MIN:-0}
+  DB_POOL_ACQUIRE_MS: ${DB_POOL_ACQUIRE_MS:-30000}
+  DB_POOL_IDLE_MS: ${DB_POOL_IDLE_MS:-10000}
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET must be set}
+  JWT_ACCESS_TTL_SECONDS: ${JWT_ACCESS_TTL_SECONDS:-900}
+  REFRESH_TOKEN_TTL_SECONDS: ${REFRESH_TOKEN_TTL_SECONDS:-604800}
+  AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
+  AUTH_COOKIE_SAME_SITE: ${AUTH_COOKIE_SAME_SITE:-lax}
+  AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME:-refresh_token}
+  AUTH_LOGIN_RATE_LIMIT_WINDOW_MS: ${AUTH_LOGIN_RATE_LIMIT_WINDOW_MS:-60000}
+  AUTH_LOGIN_RATE_LIMIT_MAX: ${AUTH_LOGIN_RATE_LIMIT_MAX:-5}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+  RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
+  RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  TRUST_PROXY: ${TRUST_PROXY:-1}
+  GEOCODING_API_URL: ${GEOCODING_API_URL:-https://geocoding-api.open-meteo.com/v1/search}
+  FORECAST_API_URL: ${FORECAST_API_URL:-https://api.open-meteo.com/v1/forecast}
+  REQUEST_TIMEOUT_MS: ${REQUEST_TIMEOUT_MS:-5000}
+  TEMPERATURE_UNIT: ${TEMPERATURE_UNIT:-celsius}
+  PRECIPITATION_UNIT: ${PRECIPITATION_UNIT:-mm}
+  OUTDOOR_MAX_PRECIPITATION: ${OUTDOOR_MAX_PRECIPITATION:-0}
+  OUTDOOR_MAX_WIND_SPEED: ${OUTDOOR_MAX_WIND_SPEED:-36}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-caselab}
+      POSTGRES_USER: ${DB_USER:-caselab}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    image: caselab-migrate:week4
+    build:
+      context: .
+      target: migration
+    environment: *app-environment
+    command: npm run db:migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  seed:
+    image: caselab-migrate:week4
+    profiles: ['tools']
+    environment: *app-environment
+    command: npm run db:seed
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: 'no'
+
+  api:
+    image: caselab-api:week4
+    build:
+      context: .
+      target: runtime
+    environment: *app-environment
+    expose:
+      - '3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health/ready').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          '/bin/promtool',
+          'query',
+          'instant',
+          'http://127.0.0.1:9090',
+          'up',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set}
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:8080/grafana/}
+      GF_SERVER_SERVE_FROM_SUB_PATH: 'true'
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning/datasources/prometheus.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
+      - ./monitoring/grafana/provisioning/dashboards/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - '${NGINX_PORT:-8080}:80'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      grafana:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  postgres_data_prod:
+  prometheus_data:
+  grafana_data:

@@ -46,7 +46,8 @@ export async function updateRequest(request, response) {
 export async function changeRequestStatus(request, response) {
   const maintenanceRequest = await requestService.changeRequestStatus(
     request.validated.params.id,
-    request.validated.body.status
+    request.validated.body.status,
+    request.user
   );
   response.status(200).json({ data: maintenanceRequest });
 }

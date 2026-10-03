@@ -348,6 +348,22 @@ export async function countAssignees(requestId, options = {}) {
   });
 }
 
+export async function isTechnicianAssigned(
+  requestId,
+  technicianId,
+  options = {}
+) {
+  const assignmentCount = await RequestAssignee.count({
+    where: {
+      request_id: requestId,
+      technician_id: technicianId,
+    },
+    transaction: options.transaction,
+  });
+
+  return assignmentCount > 0;
+}
+
 export async function remove(id) {
   const removedCount = await MaintenanceRequest.destroy({ where: { id } });
   return removedCount > 0;

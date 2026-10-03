@@ -1,328 +1,209 @@
-# CaseLab JavaScript / Full-Stack
+# CaseLab Maintenance Service
 
-Учебный Node.js-проект: погодная CLI-утилита и REST API для учёта оборудования и заявок на обслуживание. Текущая версия API использует PostgreSQL, Sequelize migrations, транзакции и SQL-отчёты.
+Production-like учебный сервис на Node.js для учёта оборудования и заявок на обслуживание. Проект объединяет authentication, RBAC, PostgreSQL, Docker Compose, Nginx, Prometheus, Grafana, OpenAPI, Jest и Postman/Newman.
 
 ## Cases
 
-- **Case 1 — Weather CLI.** Получает прогноз Open-Meteo для нескольких городов, выводит таблицу, сохраняет JSON-отчёты и использует их как кэш.
-- **Case 2 — Maintenance REST API.** Добавляет Express API для оборудования, заявок и прогноза условий наружных работ.
-- **Case 3 — PostgreSQL and analytics.** Сохраняет API Case 2, переносит runtime storage в PostgreSQL и добавляет связи, assignees, историю статусов и отчёты.
+- **Case 1 — Weather CLI:** прогноз Open-Meteo для нескольких городов, JSON-отчёты и локальный кэш.
+- **Case 2 — Maintenance REST API:** Express API для оборудования, заявок и погодных условий наружных работ.
+- **Case 3 — PostgreSQL and analytics:** Sequelize models, migrations, transactions, assignees, status history и SQL-отчёты.
+- **Case 4 — Production readiness:** authentication и sessions, RBAC, health/metrics, Docker/Nginx, Prometheus/Grafana, OpenAPI, Jest, Postman и operational runbook.
 
 ## Stack
 
-- Node.js 20+ и ESM;
-- Express 5 и Zod;
-- PostgreSQL 16;
-- Sequelize 6 и sequelize-cli;
-- Docker Compose;
-- Pino, Helmet, CORS и express-rate-limit;
-- Open-Meteo API;
-- ESLint и Prettier;
-- Postman/Newman.
+- Node.js 20+, ESM, Express 5 и Zod;
+- PostgreSQL 16, Sequelize 6 и sequelize-cli;
+- JWT access tokens и opaque refresh sessions;
+- Pino, Helmet, CORS и rate limiting;
+- Docker Compose и Nginx;
+- Prometheus и Grafana;
+- OpenAPI 3.0.3 и Swagger UI;
+- Jest, Supertest, Postman/Newman;
+- ESLint и Prettier.
 
-## Quick Start
+## Production-like Quick Start
 
-Требуются Node.js 20+, npm, Docker Engine или Docker Desktop и Docker Compose.
+Требуются Git, Docker Engine или Docker Desktop и Docker Compose.
 
 ```bash
 git clone https://github.com/SmokyRM/caselab-js.git
 cd caselab-js
-npm ci
 cp .env.example .env
 ```
 
-Укажите локальный пароль PostgreSQL в `.env`:
+Задайте в `.env` как минимум:
 
 ```dotenv
-DB_PASSWORD=your_local_password
+DB_PASSWORD=<strong-random-password>
+JWT_ACCESS_SECRET=<random-secret-at-least-32-characters>
+GRAFANA_ADMIN_PASSWORD=<strong-random-password>
 ```
 
-Запустите БД, дождитесь состояния `healthy`, примените migrations и seeds:
+Запустите production-like stack:
 
 ```bash
-npm run db:up
-docker compose ps
-npm run db:migrate
-npm run db:seed
-npm start
+docker compose -f docker-compose.prod.yml up --build -d
+docker compose -f docker-compose.prod.yml ps
 ```
 
-Проверка API:
-
-```http
-GET http://localhost:3000/api/health
-```
-
-```json
-{
-  "status": "ok"
-}
-```
-
-Weather CLI запускается отдельно:
+Migrations выполняются сервисом `migrate` до запуска API. Seed data не загружаются автоматически. Для demo/Postman окружения:
 
 ```bash
-npm run weather -- --city "Москва,Казань" --days 3
-npm run weather -- --city Москва --days 1 --no-cache
+docker compose -f docker-compose.prod.yml --profile tools run --rm seed
 ```
 
-Параметр `--city` обязателен, `--days` принимает значения от 1 до 7, а `--no-cache` пропускает чтение сегодняшнего отчёта.
+Доступные URL:
+
+| Resource     | URL                                           |
+| ------------ | --------------------------------------------- |
+| Frontend UI  | `http://localhost:8080/`                      |
+| API          | `http://localhost:8080`                       |
+| Health       | `http://localhost:8080/api/health`            |
+| Readiness    | `http://localhost:8080/api/health/ready`      |
+| Swagger UI   | `http://localhost:8080/api/docs/`             |
+| OpenAPI JSON | `http://localhost:8080/api/docs/openapi.json` |
+| Grafana      | `http://localhost:8080/grafana/`              |
+
+Prometheus и `/metrics` доступны только внутри Compose network и намеренно заблокированы внешним Nginx.
+
+Подробные инструкции:
+
+- [Deployment guide](docs/DEPLOYMENT.md)
+- [Operational runbook](docs/RUNBOOK.md)
+
+## Defense Materials
+
+- [Week 4 requirements matrix](docs/REQUIREMENTS.md)
+
+## Frontend UI
+
+The lightweight vanilla HTML/CSS/JavaScript UI is served directly by Nginx at `http://localhost:8080/`. It provides login, role-aware controls, equipment and request views, request details, assignees, status history, request creation and allowed status transitions.
+
+Access tokens stay only in JavaScript memory. After a page reload the UI attempts session restoration through the opaque HttpOnly refresh cookie. The frontend never reads or stores the refresh token and does not use `localStorage` or `sessionStorage` for access tokens.
+
+For a local HTTP browser demo, start Compose with `NODE_ENV=development AUTH_COOKIE_SECURE=false`. These are localhost-only overrides; production defaults remain `NODE_ENV=production` and Secure refresh cookies that require HTTPS.
+
+```bash
+NODE_ENV=development AUTH_COOKIE_SECURE=false docker compose -f docker-compose.prod.yml up --build -d
+```
 
 ## Architecture
 
-HTTP-запрос проходит через слои:
-
-```text
-routes
-  → validation middleware
-  → controllers
-  → services
-  → repositories
-  → Sequelize / raw SQL
-  → PostgreSQL
-```
-
-- Routes связывают URL с validation middleware и controller.
-- Controllers формируют HTTP response.
-- Services содержат бизнес-правила и транзакции.
-- Repositories выполняют DB queries.
-- Models задают Sequelize mappings и associations.
-- Migrations управляют схемой, seeders добавляют demo data.
-- Analytics repository использует параметризованный raw SQL.
-
-Основные каталоги:
-
-```text
-database/
-├── migrations/
-├── seeders/
-├── config.cjs
-└── seed-ids.cjs
-docs/postman/
-src/
-├── api/
-├── controllers/
-├── db/
-│   ├── models/
-│   ├── database.js
-│   └── sequelize.js
-├── errors/
-├── middlewares/
-├── repositories/
-├── routes/
-├── services/
-├── validators/
-├── app.js
-├── config.js
-└── server.js
-docker-compose.yml
-.sequelizerc
-```
-
-## Database
-
-### ER Diagram
-
 ```mermaid
-erDiagram
-  SITE ||--o{ EQUIPMENT : contains
-  EQUIPMENT ||--|| EQUIPMENT_PASSPORT : has
-  EQUIPMENT ||--o{ MAINTENANCE_REQUEST : receives
-  MAINTENANCE_REQUEST ||--o{ REQUEST_STATUS_HISTORY : records
-  MAINTENANCE_REQUEST ||--o{ REQUEST_ASSIGNEE : has
-  TECHNICIAN ||--o{ REQUEST_ASSIGNEE : assigned
-
-  SITE {
-    uuid id PK
-    string code UK
-    string name
-    string region
-    decimal lat
-    decimal lon
-  }
-
-  EQUIPMENT {
-    uuid id PK
-    uuid site_id FK
-    string serial_number UK
-    string name
-    enum type
-    enum status
-  }
-
-  EQUIPMENT_PASSPORT {
-    uuid id PK
-    uuid equipment_id FK, UK
-    string manufacturer
-    string model
-    decimal rated_power
-  }
-
-  MAINTENANCE_REQUEST {
-    uuid id PK
-    uuid equipment_id FK
-    string title
-    enum priority
-    enum status
-    string author
-  }
-
-  REQUEST_STATUS_HISTORY {
-    uuid id PK
-    uuid request_id FK
-    enum old_status
-    enum new_status
-    string author
-  }
-
-  TECHNICIAN {
-    uuid id PK
-    string employee_number UK
-    string full_name
-    string specialization
-  }
-
-  REQUEST_ASSIGNEE {
-    uuid request_id PK, FK
-    uuid technician_id PK, FK
-    enum role
-    decimal hours
-  }
+flowchart TD
+  Client --> Nginx
+  Nginx --> API[Node.js API]
+  API --> PostgreSQL
+  Prometheus -->|scrape /metrics| API
+  Grafana --> Prometheus
 ```
 
-### Relations and constraints
+HTTP request проходит через routes, validation/auth middleware, controllers, services, repositories и PostgreSQL. Services содержат business rules и транзакции; repositories выполняют Sequelize queries и параметризованный raw SQL.
 
-- Site → Equipment: 1:N.
-- Equipment → EquipmentPassport: 1:1.
-- Equipment → MaintenanceRequest: 1:N.
-- MaintenanceRequest → RequestStatusHistory: 1:N.
-- MaintenanceRequest ↔ Technician: N:M через RequestAssignee.
-
-Схема следует 3NF: site, passport, technician и status history хранятся отдельно. N:M вынесена в `request_assignees`, где находятся атрибуты связи `role` и `hours`.
-
-Основные ограничения:
-
-- `equipment.serial_number` и `technicians.employee_number` — `UNIQUE`;
-- `equipment_passports.equipment_id` — `UNIQUE`;
-- primary key `request_assignees` состоит из `request_id` и `technician_id`;
-- `request_assignees.hours > 0`;
-- latitude и longitude ограничены допустимыми диапазонами;
-- обязательные поля имеют `NOT NULL`;
-- типы, статусы, priorities и roles представлены PostgreSQL ENUM.
-
-Правила удаления:
-
-| Связь                                     | `ON DELETE` |
-| ----------------------------------------- | ----------- |
-| Site → Equipment                          | `RESTRICT`  |
-| Equipment → EquipmentPassport             | `CASCADE`   |
-| Equipment → MaintenanceRequest            | `RESTRICT`  |
-| MaintenanceRequest → RequestAssignee      | `CASCADE`   |
-| Technician → RequestAssignee              | `RESTRICT`  |
-| MaintenanceRequest → RequestStatusHistory | `CASCADE`   |
-
-### Migrations and seeds
-
-Схема создаётся только migrations; `sequelize.sync()` не используется. Порядок:
-
-1. sites;
-2. equipment;
-3. equipment passports;
-4. maintenance requests;
-5. technicians;
-6. request assignees;
-7. request status history.
-
-Откат последней или всех migrations:
-
-```bash
-npm run db:migrate:undo
-npm run db:migrate:undo:all
+```text
+database/               migrations and demo seeders
+docs/postman/           Week 4 Postman collection and environment
+docs/DEPLOYMENT.md      deployment procedure
+docs/RUNBOOK.md         operational troubleshooting
+monitoring/prometheus/  scrape config and alert rules
+monitoring/grafana/     provisioned datasource and dashboard
+nginx/                  reverse proxy configuration
+src/docs/               OpenAPI document
+src/                    application code
+tests/                  unit and integration tests
+docker-compose.yml      development PostgreSQL
+docker-compose.test.yml isolated test PostgreSQL
+docker-compose.prod.yml production-like stack
 ```
 
-Чистый цикл для development/demo database:
+## Authentication and Sessions
 
-```bash
-npm run db:migrate:undo:all
-npm run db:migrate
-npm run db:seed
+| Method | Endpoint             | Purpose                           |
+| ------ | -------------------- | --------------------------------- |
+| POST   | `/api/auth/register` | Register a `viewer`               |
+| POST   | `/api/auth/login`    | Login and create session          |
+| POST   | `/api/auth/refresh`  | Rotate refresh session            |
+| POST   | `/api/auth/logout`   | Revoke refresh session            |
+| GET    | `/api/auth/me`       | Return current authenticated user |
+
+Access token — short-lived Bearer JWT. Refresh token — opaque random value stored only as a hash in PostgreSQL and delivered through an HttpOnly cookie. Refresh performs rotation: the previous token is replaced. Passwords are stored only as scrypt hashes. Unknown email and wrong password return the same public error.
+
+Production configuration requires a Secure refresh cookie. The current Compose stack does not terminate TLS, so a real deployment must add HTTPS before Nginx or terminate TLS in Nginx. Plain HTTP on localhost is only a local demo and is not a complete secure production deployment.
+
+## RBAC
+
+| Action                             | viewer | technician                         | admin |
+| ---------------------------------- | :----: | ---------------------------------- | :---: |
+| Read equipment and requests        |   ✓    | ✓                                  |   ✓   |
+| Read analytics and weather         |   ✓    | ✓                                  |   ✓   |
+| Create or update request           |   —    | ✓                                  |   ✓   |
+| Change request status              |   —    | Only when assigned to that request |   ✓   |
+| Create, update or delete equipment |   —    | —                                  |   ✓   |
+| Replace or remove assignees        |   —    | —                                  |   ✓   |
+| Delete request                     |   —    | —                                  |   ✓   |
+
+Authorization happens after authentication. Admin status changes still obey domain transition and assignee rules.
+
+## Request Business Rules
+
+Allowed transitions:
+
+- `new → in_progress`;
+- `new → rejected`;
+- `in_progress → done`;
+- `in_progress → rejected`.
+
+`done` and `rejected` are terminal. Starting work requires at least one assignee; otherwise the API returns `409 REQUEST_REQUIRES_ASSIGNEES`. A technician may change status only for an assigned request; otherwise it returns `403 FORBIDDEN`.
+
+Team replacement requires at least one technician and exactly one `lead`. A duplicate or unknown technician is rejected. A lead cannot be removed while members remain.
+
+Status change is transactional:
+
+```text
+BEGIN → SELECT request FOR UPDATE → validate authorization and transition
+      → update request → insert status history → COMMIT
 ```
 
-Команда удаляет текущие данные development/demo database. `db:seed:undo:all` удаляет только seeded rows и может встретить FK conflict при наличии связанных runtime data.
-
-Seed baseline:
-
-| Entity               | Count |
-| -------------------- | ----: |
-| Sites                |     2 |
-| Equipment            |     6 |
-| Equipment passports  |     6 |
-| Technicians          |     5 |
-| Maintenance requests |    20 |
-| Request assignees    |    18 |
-| Status history rows  |    43 |
-
-Повторный `db:seed` поверх заполненной БД не рассчитан на идемпотентный запуск.
+Team replacement also locks the request row and replaces all assignments in one transaction. Failures roll back the complete operation.
 
 ## API
 
-Все endpoints используют prefix `/api`. List endpoints выполняют filtering, sorting and pagination в PostgreSQL через `WHERE`, `ORDER BY`, `LIMIT` и `OFFSET`.
+All business endpoints use `/api` and require Bearer authentication unless stated otherwise.
 
 ### Equipment
 
-| Method | Endpoint                  | Description                          |
-| ------ | ------------------------- | ------------------------------------ |
-| GET    | `/equipment`              | Список оборудования                  |
-| POST   | `/equipment`              | Создать equipment                    |
-| GET    | `/equipment/:id`          | Equipment и passport                 |
-| PATCH  | `/equipment/:id`          | Частично изменить equipment          |
-| DELETE | `/equipment/:id`          | Удалить equipment без requests       |
-| GET    | `/equipment/:id/requests` | Requests выбранного equipment        |
-| GET    | `/equipment/:id/weather`  | Прогноз и пригодность наружных работ |
-
-Equipment list поддерживает filters `status`, `type`, `installedFrom`, `installedTo`, сортировку, `page` и `limit`.
+| Method | Endpoint                      | Access        |
+| ------ | ----------------------------- | ------------- |
+| GET    | `/api/equipment`              | authenticated |
+| POST   | `/api/equipment`              | admin         |
+| GET    | `/api/equipment/:id`          | authenticated |
+| PATCH  | `/api/equipment/:id`          | admin         |
+| DELETE | `/api/equipment/:id`          | admin         |
+| GET    | `/api/equipment/:id/requests` | authenticated |
+| GET    | `/api/equipment/:id/weather`  | authenticated |
 
 ### Maintenance Requests
 
-| Method | Endpoint               | Description                       |
-| ------ | ---------------------- | --------------------------------- |
-| GET    | `/requests`            | Список requests                   |
-| POST   | `/requests`            | Создать request со статусом `new` |
-| GET    | `/requests/:id`        | Request с assignees               |
-| PATCH  | `/requests/:id`        | Изменить поля request             |
-| PATCH  | `/requests/:id/status` | Изменить статус                   |
-| DELETE | `/requests/:id`        | Удалить request                   |
+| Method | Endpoint                              | Access            |
+| ------ | ------------------------------------- | ----------------- |
+| GET    | `/api/requests`                       | authenticated     |
+| POST   | `/api/requests`                       | technician, admin |
+| GET    | `/api/requests/:id`                   | authenticated     |
+| PATCH  | `/api/requests/:id`                   | technician, admin |
+| PATCH  | `/api/requests/:id/status`            | technician, admin |
+| DELETE | `/api/requests/:id`                   | admin             |
+| GET    | `/api/requests/:id/history`           | authenticated     |
+| POST   | `/api/requests/:id/assignees`         | admin             |
+| DELETE | `/api/requests/:id/assignees/:userId` | admin             |
 
-Request list поддерживает filters `status`, `priority`, `equipmentId`, `createdFrom`, `createdTo`, сортировку, `page` и `limit`.
+### Analytics
 
-### Week 3 endpoints
+- `GET /api/sites/:id/summary` — site metadata and request aggregates;
+- `GET /api/reports/equipment-load` — equipment load, request counts, planned hours and maintenance timestamps.
 
-| Method | Endpoint                          | Description                    |
-| ------ | --------------------------------- | ------------------------------ |
-| POST   | `/requests/:id/assignees`         | Полностью заменить команду     |
-| DELETE | `/requests/:id/assignees/:userId` | Удалить assignee               |
-| GET    | `/requests/:id/history`           | История статусов               |
-| GET    | `/sites/:id/summary`              | Сводка requests площадки       |
-| GET    | `/reports/equipment-load`         | Агрегированный отчёт equipment |
+Filtering, sorting and pagination are performed in PostgreSQL. Analytics raw SQL uses CTE, `GROUP BY`, `HAVING` and bind parameters; user input is not concatenated into SQL.
 
-### Business rules
-
-Допустимые переходы статусов:
-
-- `new` → `in_progress`;
-- `new` → `rejected`;
-- `in_progress` → `done`;
-- `in_progress` → `rejected`.
-
-`done` и `rejected` — terminal statuses. Переход `new → in_progress` требует хотя бы одного assignee; иначе возвращается `409 REQUEST_REQUIRES_ASSIGNEES`.
-
-Команда request содержит минимум одного специалиста и ровно одного `lead`. Technician не может повторяться, а `hours` должны быть больше нуля. Удалить lead при оставшихся members нельзя. Единственного lead можно удалить, оставив команду пустой.
-
-Удаление equipment с открытыми requests блокируется как `409 EQUIPMENT_HAS_OPEN_REQUESTS`. FK `Equipment → MaintenanceRequest` использует `RESTRICT`, поэтому любые связанные requests блокируют физическое удаление. Такой DB conflict возвращается как `409 EQUIPMENT_HAS_REQUESTS`.
-
-Weather endpoint принимает `days` от 1 до 7. Пригодность наружных работ рассчитывается по лимитам осадков и скорости ветра из environment.
-
-Контролируемые ошибки имеют единый формат:
+### Error Contract
 
 ```json
 {
@@ -335,155 +216,157 @@ Weather endpoint принимает `days` от 1 до 7. Пригодность
 }
 ```
 
-Основные Week 3 codes: `SITE_NOT_FOUND`, `TECHNICIAN_NOT_FOUND`, `REQUEST_ASSIGNEE_NOT_FOUND`, `REQUEST_ASSIGNEE_CONFLICT`, `REQUEST_REQUIRES_ASSIGNEES`, `REQUEST_TEAM_REQUIRES_LEAD`, `EQUIPMENT_HAS_REQUESTS`, `INVALID_PAGINATION`.
+The `requestId` is also written to structured API logs and is the primary correlation key.
 
-## Transactions
+## Database
 
-Смена статуса выполняется в одной транзакции:
+The schema is managed only by migrations; `sequelize.sync()` is not used. Main relations:
 
-```text
-BEGIN
-SELECT request FOR UPDATE
-validate transition
-check assignees for in_progress
-UPDATE request
-INSERT status history
-COMMIT
+- Site → Equipment: 1:N;
+- Equipment → EquipmentPassport: 1:1;
+- Equipment → MaintenanceRequest: 1:N;
+- MaintenanceRequest → RequestStatusHistory: 1:N;
+- MaintenanceRequest ↔ Technician: N:M through RequestAssignee;
+- User → AuthSession: 1:N;
+- Technician → User: optional 1:1.
+
+The schema follows 3NF: sites, passports, technicians, users, sessions and history are separate entities; relation attributes `role` and `hours` belong to the join table.
+
+Important delete rules include Site → Equipment `RESTRICT`, Equipment → Passport `CASCADE`, Equipment → Request `RESTRICT`, Request → Assignees/History `CASCADE`, User → AuthSession `CASCADE`, and Technician → User `RESTRICT`.
+
+Common development commands:
+
+```bash
+npm run db:up
+npm run db:migrate
+npm run db:seed
+npm run db:migrate:undo
+npm run db:migrate:undo:all
+npm run db:seed:undo:all
+npm run db:down
 ```
 
-Статус и history изменяются атомарно. `FOR UPDATE` блокирует конкурирующие изменения одной request row. При ошибке транзакция откатывается.
+Seeds are demo data and are not idempotent. They include five technicians plus demo `technician` and `admin` users for Postman. Demo credentials are documented in the Postman environment and are not production account provisioning.
 
-`POST /requests/:id/assignees` полностью заменяет команду:
+## Health and Monitoring
 
-```text
-BEGIN
-SELECT request FOR UPDATE
-validate technicians
-DELETE old assignments
-INSERT new assignments
-SELECT resulting team
-COMMIT
+| Endpoint            | Meaning                  |
+| ------------------- | ------------------------ |
+| `/api/health`       | Basic HTTP health        |
+| `/api/health/live`  | Node.js process liveness |
+| `/api/health/ready` | PostgreSQL readiness     |
+
+When PostgreSQL is unavailable, liveness remains `200`, readiness becomes `503`, and `service_ready` becomes `0`.
+
+Prometheus scrapes internal `/metrics`. Grafana is available at `http://localhost:8080/grafana/` and provisions dashboard **CaseLab Service Overview** (`caselab-week4-overview`). Panels include request rate, error share, P95 latency, readiness, application errors, status/priority counts, close time, overdue requests, equipment load and planned hours.
+
+Alert `ServiceNotReady` fires when `service_ready == 0` for one minute with severity `warning`. Alertmanager is not configured.
+
+## OpenAPI and Swagger
+
+- Swagger UI: `http://localhost:8080/api/docs/`
+- Raw specification: `http://localhost:8080/api/docs/openapi.json`
+- Validation: `npm run openapi:validate`
+
+Swagger UI is public and supports Bearer authorization. OpenAPI documents auth, RBAC, business errors, health, CRUD and analytics. The specification is maintained manually and must remain synchronized with Express routes.
+
+## Tests
+
+The isolated test database is `caselab_test` on host port `5433`.
+
+```bash
+npm run test:db:up
+npm test
+npm run test:coverage
+npm run test:db:down
 ```
 
-Если technician не найден или вставка завершается ошибкой, выполняется rollback и прежняя команда сохраняется.
+Unit tests cover business rules and RBAC. Integration tests cover authentication, CRUD, status transactions and documentation endpoints.
 
-Status history доступна через `GET /requests/:id/history`. API не предоставляет операций изменения или удаления history rows.
+Current verified coverage snapshot:
 
-## Analytics
+| Metric     | Coverage |
+| ---------- | -------: |
+| Statements |   71.42% |
+| Branches   |   63.94% |
+| Functions  |   69.81% |
+| Lines      |   73.28% |
 
-### Site summary
+## Postman and Newman
 
-`GET /sites/:id/summary` возвращает site metadata, общее число requests, counts по status и priority, а также `averageCloseHours`. Время закрытия берётся из первой history transition в `done` или `rejected`.
+- Collection: `docs/postman/CaseLab Maintenance API.postman_collection.json`
+- Environment: `docs/postman/CaseLab Maintenance API.postman_environment.json`
+- Base URL: `http://localhost:8080`
 
-### Equipment load
+Start and seed the production-like stack, then run:
 
-`GET /reports/equipment-load` возвращает:
+```bash
+npm run test:postman
+```
 
-- `equipmentId`;
-- `equipmentName`;
-- `serialNumber`;
-- `requestCount`;
-- `closedRequestCount`;
-- `totalPlannedHours`;
-- `lastMaintenanceAt`.
-
-Query parameters:
-
-| Parameter     | Default | Bounds                 |
-| ------------- | ------- | ---------------------- |
-| `from`        | —       | date или ISO date-time |
-| `to`          | —       | date или ISO date-time |
-| `minRequests` | `0`     | integer ≥ 0            |
-| `limit`       | `50`    | 1–100                  |
-| `offset`      | `0`     | 0–10000                |
-
-Raw SQL использует CTE `filtered_requests`, `request_labor` и `request_done_times`, затем `GROUP BY`, aggregates и `HAVING`. `request_labor` агрегирует hours до JOIN с history, чтобы не дублировать трудозатраты.
-
-`closedRequestCount` включает `done` и `rejected`. `lastMaintenanceAt` учитывает только первую transition в `done`. `minRequests` применяется через `HAVING COUNT(...)`.
-
-Параметры отчётов передаются в SQL через bind parameters. Пользовательские значения не конкатенируются со строкой запроса. Сортировка equipment-load статична; sort fields обычных списков проходят whitelist validation.
-
-## Compatibility notes
-
-Case 2 API принимает и возвращает `location: { lat, lon }`. В Week 3 координаты хранятся в Site. Equipment repository загружает location через association и при записи ищет site по координатам. Если site отсутствует, создаётся compatibility site.
-
-Поле `maintenance_requests.author` обязательно в БД. Старый POST body не содержит author, поэтому repository записывает внутреннее значение `api`.
-
-Связанные Site, passport и assignees загружаются через Sequelize `include`.
-
-Sequelize instance создаётся один раз. Перед запуском HTTP server выполняется `sequelize.authenticate()`. Если БД недоступна, HTTP server не запускается. При `SIGINT` или `SIGTERM` закрываются HTTP server и connection pool.
+The collection verifies register/login/refresh/logout, Bearer auth, viewer/technician/admin RBAC, equipment and request CRUD, assignees, status rules, history, health, docs and analytics. The refresh token stays in the Postman cookie jar and is never copied into an environment variable. External weather is skipped by default; set `runExternalWeather=true` to test Open-Meteo explicitly.
 
 ## Environment
 
-Локальный `.env` не коммитится. `.env.example` содержит defaults и безопасный placeholder для `DB_PASSWORD`. `npm start` читает `.env` через встроенный `--env-file-if-exists` Node.js.
+`.env` is ignored. `.env.example` contains local examples and placeholders.
 
-### API and Weather
+| Variable                                                              | Purpose                         |
+| --------------------------------------------------------------------- | ------------------------------- |
+| `PORT`, `NODE_ENV`                                                    | API runtime                     |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`             | PostgreSQL connection           |
+| `DB_POOL_MAX`, `DB_POOL_MIN`, `DB_POOL_ACQUIRE_MS`, `DB_POOL_IDLE_MS` | Sequelize pool                  |
+| `JWT_ACCESS_SECRET`, `JWT_ACCESS_TTL_SECONDS`                         | Access JWT signing and TTL      |
+| `REFRESH_TOKEN_TTL_SECONDS`                                           | Refresh session TTL             |
+| `AUTH_COOKIE_SECURE`, `AUTH_COOKIE_SAME_SITE`, `AUTH_COOKIE_NAME`     | Refresh cookie                  |
+| `AUTH_LOGIN_RATE_LIMIT_WINDOW_MS`, `AUTH_LOGIN_RATE_LIMIT_MAX`        | Login limiter                   |
+| `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX`                              | General API limiter             |
+| `CORS_ORIGINS`, `TRUST_PROXY`, `LOG_LEVEL`                            | HTTP and logging                |
+| `GEOCODING_API_URL`, `FORECAST_API_URL`, `REQUEST_TIMEOUT_MS`         | Open-Meteo client               |
+| `TEMPERATURE_UNIT`, `PRECIPITATION_UNIT`                              | Weather units                   |
+| `OUTDOOR_MAX_PRECIPITATION`, `OUTDOOR_MAX_WIND_SPEED`                 | Outdoor-work rules              |
+| `REPORTS_DIR`                                                         | Weather CLI reports/cache       |
+| `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD`, `GRAFANA_ROOT_URL`    | Grafana                         |
+| `NGINX_PORT`                                                          | Host Nginx port, default `8080` |
 
-| Variable                    | Default / example        | Description                      |
-| --------------------------- | ------------------------ | -------------------------------- |
-| `PORT`                      | `3000`                   | Express port                     |
-| `NODE_ENV`                  | `development`            | Runtime environment name         |
-| `GEOCODING_API_URL`         | Open-Meteo geocoding URL | Weather CLI geocoding            |
-| `FORECAST_API_URL`          | Open-Meteo forecast URL  | Weather forecast                 |
-| `REQUEST_TIMEOUT_MS`        | `5000`                   | Open-Meteo timeout, ms           |
-| `REPORTS_DIR`               | `reports`                | Weather reports/cache directory  |
-| `TEMPERATURE_UNIT`          | `celsius`                | `celsius` or `fahrenheit`        |
-| `PRECIPITATION_UNIT`        | `mm`                     | `mm` or `inch`                   |
-| `OUTDOOR_MAX_PRECIPITATION` | `0`                      | Outdoor work precipitation limit |
-| `OUTDOOR_MAX_WIND_SPEED`    | `36`                     | Outdoor work wind limit          |
-| `CORS_ORIGINS`              | local origins            | Comma-separated allowlist        |
-| `RATE_LIMIT_WINDOW_MS`      | `60000`                  | Rate-limit window, ms            |
-| `RATE_LIMIT_MAX`            | `100`                    | Requests per window              |
-| `LOG_LEVEL`                 | `info`                   | Pino log level                   |
+## Security
 
-### Database
+- scrypt password hashing;
+- generic invalid-login responses;
+- short-lived JWT access token;
+- opaque rotating refresh token stored as a hash;
+- HttpOnly/Secure cookie configuration;
+- Helmet and explicit CORS allowlist;
+- general and login-specific rate limits;
+- 100 KB JSON body limit;
+- non-root production API container;
+- API, PostgreSQL, Prometheus and Grafana are not host-published.
 
-| Variable             | Default / example | Description                         |
-| -------------------- | ----------------- | ----------------------------------- |
-| `DB_HOST`            | `localhost`       | PostgreSQL host                     |
-| `DB_PORT`            | `5432`            | PostgreSQL port                     |
-| `DB_NAME`            | `caselab`         | Database name                       |
-| `DB_USER`            | `caselab`         | Database user                       |
-| `DB_PASSWORD`        | `change_me`       | Required local password placeholder |
-| `DB_POOL_MAX`        | `10`              | Maximum pool size                   |
-| `DB_POOL_MIN`        | `0`               | Minimum pool size                   |
-| `DB_POOL_ACQUIRE_MS` | `30000`           | Pool acquire timeout, ms            |
-| `DB_POOL_IDLE_MS`    | `10000`           | Idle connection timeout, ms         |
+The project does not claim TLS termination, CSRF tokens or Docker Secrets.
 
-## Postman
+## Known Limitations
 
-Collection:
+- the current Compose stack does not terminate TLS;
+- Alertmanager is not configured;
+- container images use pinned tags rather than immutable digests;
+- OpenAPI is synchronized with Express routes manually;
+- the provisioned Grafana dashboard is read-only;
+- weather depends on external Open-Meteo availability;
+- demo seeders are not idempotent;
+- no zero-downtime deployment is provided;
+- automated database backup/restore is outside the current project scope.
 
-```text
-docs/postman/CaseLab Maintenance API.postman_collection.json
-```
+## Useful Commands
 
-Environment:
-
-```text
-docs/postman/CaseLab Maintenance API.postman_environment.json
-```
-
-Collection содержит Week 2 и Week 3 scenarios, negative cases, analytics и cleanup.
-
-Последний проверенный Newman run: **69 requests / 220 assertions / 0 failures**.
-
-Rate-limit scenario запускается отдельно с `RATE_LIMIT_MAX=2`: ожидаются ответы `200`, `200`, `429`.
-
-## Useful commands
-
-| Command                                     | Description                  |
-| ------------------------------------------- | ---------------------------- |
-| `npm start`                                 | Start Express API            |
-| `npm run weather -- --city Москва --days 3` | Run Weather CLI              |
-| `npm run db:up`                             | Start PostgreSQL             |
-| `npm run db:down`                           | Stop Compose services        |
-| `npm run db:logs`                           | Show PostgreSQL logs         |
-| `npm run db:migrate`                        | Apply migrations             |
-| `npm run db:migrate:undo`                   | Roll back the last migration |
-| `npm run db:migrate:undo:all`               | Roll back all migrations     |
-| `npm run db:seed`                           | Apply seeders                |
-| `npm run db:seed:undo:all`                  | Undo seeders                 |
-| `npm run lint`                              | Run ESLint                   |
-| `npm run format`                            | Format files with Prettier   |
-| `npm run format:check`                      | Check formatting             |
+| Command                                          | Purpose                                |
+| ------------------------------------------------ | -------------------------------------- |
+| `npm start`                                      | Start API from host environment        |
+| `npm run weather -- --city Москва --days 3`      | Run Case 1 CLI                         |
+| `npm run openapi:validate`                       | Validate OpenAPI document              |
+| `npm run test:postman`                           | Run production-like Postman collection |
+| `npm run test:db:up`                             | Start isolated test PostgreSQL         |
+| `npm test`                                       | Run unit and integration suites        |
+| `npm run test:coverage`                          | Run coverage                           |
+| `npm run test:db:down`                           | Remove isolated test database          |
+| `npm run lint`                                   | Run ESLint                             |
+| `npm run format:check`                           | Check formatting                       |
+| `docker compose -f docker-compose.prod.yml down` | Stop stack and retain volumes          |
