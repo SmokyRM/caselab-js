@@ -71,6 +71,10 @@ Prometheus и `/metrics` доступны только внутри Compose netw
 - [Deployment guide](docs/DEPLOYMENT.md)
 - [Operational runbook](docs/RUNBOOK.md)
 
+## Defense Materials
+
+- [Week 4 requirements matrix](docs/REQUIREMENTS.md)
+
 ## Frontend UI
 
 The lightweight vanilla HTML/CSS/JavaScript UI is served directly by Nginx at `http://localhost:8080/`. It provides login, role-aware controls, equipment and request views, request details, assignees, status history, request creation and allowed status transitions.

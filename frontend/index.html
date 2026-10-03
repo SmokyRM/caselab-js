@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,9 +14,9 @@
     <main id="login-view" class="login-page">
       <section class="login-card" aria-labelledby="login-title">
         <div class="brand-mark" aria-hidden="true">CL</div>
-        <p class="eyebrow">Week 4 demo</p>
-        <h1 id="login-title">CaseLab Maintenance</h1>
-        <p class="muted">Sign in to manage equipment and maintenance work.</p>
+        <p class="eyebrow">Демо Week 4</p>
+        <h1 id="login-title">CaseLab: обслуживание</h1>
+        <p class="muted">Войдите для работы с оборудованием и заявками.</p>
 
         <form id="login-form" class="stack-form">
           <label for="login-email">Email</label>
@@ -28,7 +28,7 @@
             required
           />
 
-          <label for="login-password">Password</label>
+          <label for="login-password">Пароль</label>
           <input
             id="login-password"
             name="password"
@@ -38,10 +38,10 @@
             required
           />
 
-          <button class="primary-button" type="submit">Log in</button>
+          <button class="primary-button" type="submit">Войти</button>
         </form>
 
-        <p class="login-hint">Use demo credentials from README or Postman.</p>
+        <p class="login-hint">Используйте демо-данные из README или Postman.</p>
         <div
           id="login-error"
           class="alert alert-error hidden"
@@ -55,8 +55,8 @@
         <div class="topbar-brand">
           <span class="brand-mark brand-mark-small" aria-hidden="true">CL</span>
           <div>
-            <p class="eyebrow">Operations dashboard</p>
-            <strong>CaseLab Maintenance</strong>
+            <p class="eyebrow">Панель обслуживания</p>
+            <strong>CaseLab: обслуживание</strong>
           </div>
         </div>
 
@@ -66,18 +66,18 @@
             <span id="current-user-role" class="role-badge"></span>
           </div>
           <button id="logout-button" class="secondary-button" type="button">
-            Log out
+            Выйти
           </button>
         </div>
       </header>
 
       <div class="workspace">
-        <nav class="sidebar" aria-label="Main navigation">
+        <nav class="sidebar" aria-label="Основная навигация">
           <button class="nav-button active" type="button" data-view="equipment">
-            Equipment
+            Оборудование
           </button>
           <button class="nav-button" type="button" data-view="requests">
-            Requests
+            Заявки
           </button>
         </nav>
 
@@ -95,7 +95,7 @@
           id="dialog-close"
           class="icon-button"
           type="button"
-          aria-label="Close dialog"
+          aria-label="Закрыть диалог"
         >
           ×
         </button>

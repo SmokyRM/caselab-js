@@ -54,7 +54,7 @@ function displayError(error, context = '') {
     normalized.status === 403 &&
     getCurrentUser()?.role === 'technician'
   ) {
-    normalized.message = 'You are not assigned to this request.';
+    normalized.message = 'Вы не назначены на эту заявку.';
   }
 
   showAlert(refs.pageAlert, normalized);
@@ -92,8 +92,19 @@ async function loadRequests() {
   renderLoading(refs.content);
 
   try {
-    const response = await apiRequest('/api/requests?page=1&limit=50');
-    renderRequestList(refs.content, response.data, getCurrentUser());
+    const [requestsResponse, equipmentResponse] = await Promise.all([
+      apiRequest('/api/requests?page=1&limit=50'),
+      apiRequest('/api/equipment?page=1&limit=100'),
+    ]);
+    const equipmentById = new Map(
+      equipmentResponse.data.map((item) => [item.id, item])
+    );
+    renderRequestList(
+      refs.content,
+      requestsResponse.data,
+      getCurrentUser(),
+      equipmentById
+    );
   } catch (error) {
     displayError(error);
   }
@@ -108,11 +119,15 @@ async function loadRequestDetails(id) {
       apiRequest(`/api/requests/${id}`),
       apiRequest(`/api/requests/${id}/history`),
     ]);
+    const equipmentResponse = await apiRequest(
+      `/api/equipment/${requestResponse.data.equipmentId}`
+    );
     renderRequestDetails(
       refs.content,
       requestResponse.data,
       historyResponse.data,
-      getCurrentUser()
+      getCurrentUser(),
+      equipmentResponse.data
     );
   } catch (error) {
     displayError(error);
@@ -134,16 +149,16 @@ async function openRequestForm() {
   try {
     const response = await apiRequest('/api/equipment?page=1&limit=100');
     if (!response.data.length) {
-      throw new Error('Create equipment before creating a request.');
+      throw new Error('Сначала создайте оборудование.');
     }
-    openDialog('New maintenance request', createRequestForm(response.data));
+    openDialog('Новая заявка', createRequestForm(response.data));
   } catch (error) {
     displayError(error);
   }
 }
 
 function openEquipmentForm() {
-  openDialog('Create equipment', createEquipmentForm());
+  openDialog('Новое оборудование', createEquipmentForm());
 }
 
 async function submitRequestForm(form) {
@@ -163,7 +178,7 @@ async function submitRequestForm(form) {
   });
   closeDialog();
   await loadRequests();
-  showAlert(refs.pageAlert, { message: 'Maintenance request created.' }, true);
+  showAlert(refs.pageAlert, { message: 'Заявка создана.' }, true);
 }
 
 async function submitEquipmentForm(form) {
@@ -186,7 +201,7 @@ async function submitEquipmentForm(form) {
   });
   closeDialog();
   await loadEquipment();
-  showAlert(refs.pageAlert, { message: 'Equipment created.' }, true);
+  showAlert(refs.pageAlert, { message: 'Оборудование создано.' }, true);
 }
 
 async function changeStatus(id, status) {
@@ -198,11 +213,7 @@ async function changeStatus(id, status) {
       body: JSON.stringify({ status }),
     });
     await loadRequestDetails(id);
-    showAlert(
-      refs.pageAlert,
-      { message: `Status changed to ${status}.` },
-      true
-    );
+    showAlert(refs.pageAlert, { message: 'Статус заявки изменён.' }, true);
   } catch (error) {
     displayError(error, 'status-change');
   }
@@ -218,7 +229,7 @@ refs.loginForm.addEventListener('submit', async (event) => {
   refs.loginError.classList.add('hidden');
   const submitButton = refs.loginForm.querySelector('button[type="submit"]');
   submitButton.disabled = true;
-  submitButton.textContent = 'Logging in…';
+  submitButton.textContent = 'Вход…';
 
   try {
     const data = new FormData(refs.loginForm);
@@ -228,7 +239,7 @@ refs.loginForm.addEventListener('submit', async (event) => {
     showAlert(refs.loginError, error);
   } finally {
     submitButton.disabled = false;
-    submitButton.textContent = 'Log in';
+    submitButton.textContent = 'Войти';
   }
 });
 
@@ -300,7 +311,7 @@ refs.dialog.addEventListener('click', (event) => {
 });
 
 handleSessionLost(() => {
-  showLoginView(refs, 'Your session expired. Please log in again.');
+  showLoginView(refs, 'Сессия истекла. Войдите снова.');
 });
 
 renderLoading(refs.content);

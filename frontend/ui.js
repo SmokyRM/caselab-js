@@ -20,14 +20,44 @@ function formatDate(value, includeTime = false) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
 
-  return new Intl.DateTimeFormat('en', {
+  return new Intl.DateTimeFormat('ru-RU', {
     dateStyle: 'medium',
     ...(includeTime ? { timeStyle: 'short' } : {}),
   }).format(date);
 }
 
 function formatLabel(value) {
-  return value ? String(value).replaceAll('_', ' ') : '—';
+  const labels = {
+    admin: 'Администратор',
+    viewer: 'Наблюдатель',
+    technician: 'Техник',
+    turbine: 'Турбина',
+    inverter: 'Инвертор',
+    sensor: 'Датчик',
+    substation: 'Подстанция',
+    operational: 'В работе',
+    maintenance: 'На обслуживании',
+    fault: 'Неисправно',
+    decommissioned: 'Снято с эксплуатации',
+    low: 'Низкий',
+    medium: 'Средний',
+    high: 'Высокий',
+    critical: 'Критический',
+    new: 'Новая',
+    in_progress: 'В работе',
+    done: 'Выполнена',
+    rejected: 'Отклонена',
+    lead: 'Ведущий',
+    member: 'Участник',
+    created: 'Создана',
+  };
+
+  return value ? labels[value] || String(value).replaceAll('_', ' ') : '—';
+}
+
+function formatEquipment(equipment, fallbackId) {
+  if (!equipment) return fallbackId;
+  return `${equipment.name} · ${equipment.serialNumber}`;
 }
 
 function badge(value, kind) {
@@ -74,7 +104,7 @@ function actionButton(text, action) {
 function backButton(view) {
   const button = element('button', {
     className: 'back-button',
-    text: '← Back to list',
+    text: '← Назад к списку',
     type: 'button',
     action: 'back-to-list',
   });
@@ -96,7 +126,7 @@ export function showApplicationView(refs, user) {
   refs.loginView.classList.add('hidden');
   refs.applicationView.classList.remove('hidden');
   refs.currentUserEmail.textContent = user.email;
-  refs.currentUserRole.textContent = user.role;
+  refs.currentUserRole.textContent = formatLabel(user.role);
   refs.currentUserRole.className = 'role-badge';
 }
 
@@ -107,13 +137,13 @@ export function showAlert(target, error, success = false) {
     target,
     element('span', {
       className: 'alert-title',
-      text: success ? 'Success' : error.code || 'Request failed',
+      text: success ? 'Успешно' : error.code || 'Ошибка запроса',
     }),
     element('span', { text: error.message || String(error) }),
     error.requestId
       ? element('span', {
           className: 'alert-meta',
-          text: `Request ID: ${error.requestId}`,
+          text: `ID запроса: ${error.requestId}`,
         })
       : null
   );
@@ -126,16 +156,16 @@ export function clearAlert(target) {
 
 export function renderLoading(content) {
   content.replaceChildren(
-    element('div', { className: 'loading-state', text: 'Loading…' })
+    element('div', { className: 'loading-state', text: 'Загрузка…' })
   );
 }
 
 export function renderEquipmentList(content, equipment, user) {
   const canCreate = user.role === 'admin';
   const header = pageHeader(
-    'Equipment',
-    `${equipment.length} item${equipment.length === 1 ? '' : 's'} available`,
-    canCreate ? actionButton('Create equipment', 'create-equipment') : null
+    'Оборудование',
+    `Найдено: ${equipment.length}`,
+    canCreate ? actionButton('Добавить оборудование', 'create-equipment') : null
   );
 
   if (!equipment.length) {
@@ -143,7 +173,7 @@ export function renderEquipmentList(content, equipment, user) {
       header,
       element('div', {
         className: 'empty-state',
-        text: 'No equipment found.',
+        text: 'Оборудование не найдено.',
       })
     );
     return;
@@ -172,10 +202,10 @@ export function renderEquipmentList(content, equipment, user) {
     const fields = element('div', { className: 'card-fields' });
     append(
       fields,
-      field('Type', formatLabel(item.type)),
-      field('Installed', formatDate(item.installedAt)),
-      field('Latitude', item.location?.lat),
-      field('Longitude', item.location?.lon)
+      field('Тип', formatLabel(item.type)),
+      field('Установлено', formatDate(item.installedAt)),
+      field('Широта', item.location?.lat),
+      field('Долгота', item.location?.lon)
     );
     append(card, title, fields);
     grid.append(card);
@@ -196,11 +226,11 @@ export function renderEquipmentDetails(content, equipment) {
   const details = element('div', { className: 'detail-grid' });
   append(
     details,
-    field('Type', formatLabel(equipment.type)),
-    field('Serial number', equipment.serialNumber),
-    field('Installed', formatDate(equipment.installedAt)),
+    field('Тип', formatLabel(equipment.type)),
+    field('Серийный номер', equipment.serialNumber),
+    field('Установлено', formatDate(equipment.installedAt)),
     field(
-      'Location',
+      'Координаты',
       equipment.location
         ? `${equipment.location.lat}, ${equipment.location.lon}`
         : '—'
@@ -216,17 +246,17 @@ export function renderEquipmentDetails(content, equipment) {
     const passportGrid = element('div', { className: 'detail-grid' });
     append(
       passportGrid,
-      field('Manufacturer', equipment.passport.manufacturer),
-      field('Model', equipment.passport.model),
-      field('Rated power', equipment.passport.ratedPower),
+      field('Производитель', equipment.passport.manufacturer),
+      field('Модель', equipment.passport.model),
+      field('Номинальная мощность', equipment.passport.ratedPower),
       field(
-        'Last verification',
+        'Последняя поверка',
         formatDate(equipment.passport.lastVerificationAt, true)
       )
     );
     append(
       passport,
-      element('h3', { text: 'Equipment passport' }),
+      element('h3', { text: 'Паспорт оборудования' }),
       passportGrid
     );
     layout.append(passport);
@@ -235,12 +265,12 @@ export function renderEquipmentDetails(content, equipment) {
   content.replaceChildren(layout);
 }
 
-export function renderRequestList(content, requests, user) {
+export function renderRequestList(content, requests, user, equipmentById) {
   const canCreate = ['technician', 'admin'].includes(user.role);
   const header = pageHeader(
-    'Maintenance requests',
-    `${requests.length} request${requests.length === 1 ? '' : 's'} available`,
-    canCreate ? actionButton('New request', 'create-request') : null
+    'Заявки на обслуживание',
+    `Найдено: ${requests.length}`,
+    canCreate ? actionButton('Новая заявка', 'create-request') : null
   );
 
   if (!requests.length) {
@@ -248,7 +278,7 @@ export function renderRequestList(content, requests, user) {
       header,
       element('div', {
         className: 'empty-state',
-        text: 'No requests found.',
+        text: 'Заявки не найдены.',
       })
     );
     return;
@@ -272,10 +302,13 @@ export function renderRequestList(content, requests, user) {
     const fields = element('div', { className: 'card-fields' });
     append(
       fields,
-      field('Priority', formatLabel(item.priority)),
-      field('Equipment', item.equipmentId),
-      field('Planned', formatDate(item.plannedAt, true)),
-      field('Updated', formatDate(item.updatedAt, true))
+      field('Приоритет', formatLabel(item.priority)),
+      field(
+        'Оборудование',
+        formatEquipment(equipmentById.get(item.equipmentId), item.equipmentId)
+      ),
+      field('Запланировано', formatDate(item.plannedAt, true)),
+      field('Обновлено', formatDate(item.updatedAt, true))
     );
     append(card, title, fields);
     grid.append(card);
@@ -286,10 +319,12 @@ export function renderRequestList(content, requests, user) {
 
 function renderAssignees(assignees = []) {
   const section = element('section', { className: 'detail-section' });
-  section.append(element('h3', { text: 'Assignees' }));
+  section.append(element('h3', { text: 'Исполнители' }));
 
   if (!assignees.length) {
-    section.append(element('p', { className: 'muted', text: 'No assignees.' }));
+    section.append(
+      element('p', { className: 'muted', text: 'Исполнители не назначены.' })
+    );
     return section;
   }
 
@@ -301,7 +336,7 @@ function renderAssignees(assignees = []) {
       element('strong', { text: assignee.fullName }),
       element('div', {
         className: 'metadata',
-        text: `${formatLabel(assignee.role)} · ${assignee.specialization} · ${assignee.hours} h`,
+        text: `${formatLabel(assignee.role)} · ${assignee.specialization} · ${assignee.hours} ч`,
       })
     );
     list.append(item);
@@ -312,11 +347,11 @@ function renderAssignees(assignees = []) {
 
 function renderHistory(history = []) {
   const section = element('section', { className: 'detail-section' });
-  section.append(element('h3', { text: 'Status history' }));
+  section.append(element('h3', { text: 'История статусов' }));
 
   if (!history.length) {
     section.append(
-      element('p', { className: 'muted', text: 'No status history yet.' })
+      element('p', { className: 'muted', text: 'История статусов пуста.' })
     );
     return section;
   }
@@ -348,7 +383,13 @@ const nextStatuses = {
   rejected: [],
 };
 
-export function renderRequestDetails(content, request, history, user) {
+export function renderRequestDetails(
+  content,
+  request,
+  history,
+  user,
+  equipment
+) {
   const section = element('section', { className: 'detail-section' });
   const title = element('div', { className: 'detail-title-row' });
   append(
@@ -364,17 +405,17 @@ export function renderRequestDetails(content, request, history, user) {
   const details = element('div', { className: 'detail-grid' });
   append(
     details,
-    field('Equipment', request.equipmentId),
-    field('Planned', formatDate(request.plannedAt, true)),
-    field('Created', formatDate(request.createdAt, true)),
-    field('Updated', formatDate(request.updatedAt, true))
+    field('Оборудование', formatEquipment(equipment, request.equipmentId)),
+    field('Запланировано', formatDate(request.plannedAt, true)),
+    field('Создано', formatDate(request.createdAt, true)),
+    field('Обновлено', formatDate(request.updatedAt, true))
   );
   append(
     section,
     title,
     request.description
       ? element('p', { text: request.description })
-      : element('p', { className: 'muted', text: 'No description.' }),
+      : element('p', { className: 'muted', text: 'Описание не указано.' }),
     details
   );
 
@@ -385,7 +426,7 @@ export function renderRequestDetails(content, request, history, user) {
       for (const status of statuses) {
         const button = element('button', {
           className: 'status-button',
-          text: `Set ${formatLabel(status)}`,
+          text: `Установить: ${formatLabel(status)}`,
           type: 'button',
           action: 'change-status',
         });
@@ -443,13 +484,13 @@ function formActions() {
     element('div', { className: 'form-actions' }),
     element('button', {
       className: 'secondary-button',
-      text: 'Cancel',
+      text: 'Отмена',
       type: 'button',
       action: 'close-dialog',
     }),
     element('button', {
       className: 'primary-button',
-      text: 'Save',
+      text: 'Сохранить',
       type: 'submit',
     })
   );
@@ -484,11 +525,11 @@ export function createRequestForm(equipment) {
 
   append(
     form,
-    ...formField('Equipment', equipmentSelect),
-    ...formField('Title', title),
-    ...formField('Description', description),
-    ...formField('Priority', priority),
-    ...formField('Planned time', plannedAt),
+    ...formField('Оборудование', equipmentSelect),
+    ...formField('Название', title),
+    ...formField('Описание', description),
+    ...formField('Приоритет', priority),
+    ...formField('Запланировано на', plannedAt),
     formActions()
   );
   return form;
@@ -528,13 +569,13 @@ export function createEquipmentForm() {
 
   append(
     form,
-    ...formField('Name', name),
-    ...formField('Type', type),
-    ...formField('Serial number', serialNumber),
-    ...formField('Latitude', latitude),
-    ...formField('Longitude', longitude),
-    ...formField('Status', status),
-    ...formField('Installed date', installedAt),
+    ...formField('Название', name),
+    ...formField('Тип', type),
+    ...formField('Серийный номер', serialNumber),
+    ...formField('Широта', latitude),
+    ...formField('Долгота', longitude),
+    ...formField('Статус', status),
+    ...formField('Дата установки', installedAt),
     formActions()
   );
   return form;
