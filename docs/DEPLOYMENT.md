@@ -68,6 +68,7 @@ Seeds are not idempotent and include clearly marked demo technician/admin accoun
 
 With default `NGINX_PORT=8080`:
 
+- frontend UI: `http://localhost:8080/`;
 - API: `http://localhost:8080`;
 - health: `http://localhost:8080/api/health`;
 - readiness: `http://localhost:8080/api/health/ready`;
@@ -76,6 +77,12 @@ With default `NGINX_PORT=8080`:
 - Grafana: `http://localhost:8080/grafana/`.
 
 Prometheus and `/metrics` are internal-only.
+
+For a local HTTP frontend demo only, use `NODE_ENV=development AUTH_COOKIE_SECURE=false` so the browser can send the refresh cookie without TLS. Do not use those overrides for a real deployment; production remains the Compose default.
+
+```bash
+NODE_ENV=development AUTH_COOKIE_SECURE=false docker compose -f docker-compose.prod.yml up --build -d
+```
 
 ## Validation
 

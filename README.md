@@ -56,6 +56,7 @@ docker compose -f docker-compose.prod.yml --profile tools run --rm seed
 
 | Resource     | URL                                           |
 | ------------ | --------------------------------------------- |
+| Frontend UI  | `http://localhost:8080/`                      |
 | API          | `http://localhost:8080`                       |
 | Health       | `http://localhost:8080/api/health`            |
 | Readiness    | `http://localhost:8080/api/health/ready`      |
@@ -69,6 +70,18 @@ Prometheus и `/metrics` доступны только внутри Compose netw
 
 - [Deployment guide](docs/DEPLOYMENT.md)
 - [Operational runbook](docs/RUNBOOK.md)
+
+## Frontend UI
+
+The lightweight vanilla HTML/CSS/JavaScript UI is served directly by Nginx at `http://localhost:8080/`. It provides login, role-aware controls, equipment and request views, request details, assignees, status history, request creation and allowed status transitions.
+
+Access tokens stay only in JavaScript memory. After a page reload the UI attempts session restoration through the opaque HttpOnly refresh cookie. The frontend never reads or stores the refresh token and does not use `localStorage` or `sessionStorage` for access tokens.
+
+For a local HTTP browser demo, start Compose with `NODE_ENV=development AUTH_COOKIE_SECURE=false`. These are localhost-only overrides; production defaults remain `NODE_ENV=production` and Secure refresh cookies that require HTTPS.
+
+```bash
+NODE_ENV=development AUTH_COOKIE_SECURE=false docker compose -f docker-compose.prod.yml up --build -d
+```
 
 ## Architecture
 
