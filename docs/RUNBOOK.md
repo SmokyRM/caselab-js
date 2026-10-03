@@ -136,3 +136,26 @@ curl --fail http://localhost:8080/api/docs/openapi.json
 ```
 
 Confirm the affected user flow, inspect Grafana, and verify no alert remains active.
+
+## 14. DB Password Mismatch After Changing `.env`
+
+`POSTGRES_PASSWORD` is applied only when PostgreSQL initializes a new empty data volume. Changing `DB_PASSWORD` in `.env` does not change the role password inside an existing database cluster, so the API can start failing with password authentication errors.
+
+Safe options:
+
+- restore the original password used to initialize the volume;
+- deliberately change the PostgreSQL role password using an authorized database procedure;
+- for a disposable local demo only, recreate the stack and its volume from zero.
+
+`docker compose ... down -v` permanently deletes the data in named volumes. It is not a production password-recovery procedure and must never be suggested without an explicit data-loss decision and a verified backup.
+
+## 15. Local Frontend Demo
+
+For a localhost HTTP demo:
+
+- include the frontend origin in `CORS_ORIGINS`, for example `http://localhost:8080`;
+- set `AUTH_COOKIE_SECURE=false` only because localhost uses HTTP;
+- run the demo seed once to create demo admin and technician users;
+- keep the production default `AUTH_COOKIE_SECURE=true` and use HTTPS for real deployment.
+
+If login succeeds but refresh fails, inspect the cookie attributes, origin, environment mode and API logs before changing application code.

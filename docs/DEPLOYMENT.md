@@ -84,6 +84,10 @@ For a local HTTP frontend demo only, use `NODE_ENV=development AUTH_COOKIE_SECUR
 NODE_ENV=development AUTH_COOKIE_SECURE=false docker compose -f docker-compose.prod.yml up --build -d
 ```
 
+The local frontend origin must also be present in `CORS_ORIGINS` when it differs from the configured default. Demo admin/technician accounts are created only by the optional seed, which must be run once on a fresh demo database. Production keeps `AUTH_COOKIE_SECURE=true` and requires HTTPS.
+
+If `DB_PASSWORD` is changed after the PostgreSQL volume was initialized, changing `.env` alone does not update the existing database role password. See the Runbook before taking any action; deleting a volume with `down -v` destroys its data and is appropriate only for an explicitly disposable local demo.
+
 ## Validation
 
 ```bash
