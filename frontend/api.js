@@ -4,7 +4,7 @@ let refreshPromise = null;
 
 export class ApiError extends Error {
   constructor({ status, code, message, requestId, details }) {
-    super(message || 'The request could not be completed.');
+    super(message || 'Не удалось выполнить запрос.');
     this.name = 'ApiError';
     this.status = status;
     this.code = code || 'HTTP_ERROR';
